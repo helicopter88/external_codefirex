@@ -76,27 +76,21 @@ if ! [ -d ncurses-$NCURSES ]; then
 	wget ftp://invisible-island.net/ncurses/ncurses-$NCURSES.tar.gz
 	tar xf ncurses-$NCURSES.tar.gz
 fi
+if ! [ -d bionic ]; then
+	git clone git://android.git.linaro.org/platform/bionic.git
+	cd bionic
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+fi
 VIMD=`echo $VIM |sed -e 's,\.,,'` # Directory name is actually vim73 for vim-7.3 etc.
 if ! [ -d vim$VIMD ]; then
 	wget ftp://ftp.vim.org/pub/vim/unix/vim-$VIM.tar.bz2
 	tar xf vim-$VIM.tar.bz2
 fi
-if ! [ -d android ]; then
-	mkdir android
-	cd android
-	repo init -u git://android.git.linaro.org/platform/manifest.git -b linaro_android_$ANDROID -m tracking-panda.xml
-	repo sync
-	cd ..
-fi
 cd ..
-
 export PATH="$DIR/tc-wrapper:$TC/bin:$PATH"
 
 rm -rf "$DEST"
-cd src/android
-# Android can't be built out-of-source for the time being...
-#make TARGET_TOOLS_PREFIX="$TC/bin/arm-linux-androideabi-" TARGET_PRODUCT=pandaboard BUILD_TINY_ANDROID=true
-cd ../..
 # FIXME this is a pretty awful hack to make sure gcc can find
 # its headers even though it has been taught Android doesn't
 # have system headers (no proper sysroot)
@@ -110,8 +104,7 @@ cd ../..
 # files from libc/include
 mkdir -p "$DEST"/system/include
 for i in libc/include libc/arch-arm/include libc/kernel/common libc/kernel/arch-arm libm/include; do
-#	cp -a bionic/$i/* "$TC"/lib/gcc/arm-linux-androideabi/*/include/
-	cp -a src/android/bionic/$i/* "$DEST"/system/include
+	cp -a src/bionic/$i/* "$DEST"/system/include
 done
 
 rm -rf build
