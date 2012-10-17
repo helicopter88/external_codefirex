@@ -75,6 +75,9 @@ fi
 if ! [ -d ncurses-$NCURSES ]; then
 	wget ftp://invisible-island.net/ncurses/ncurses-$NCURSES.tar.gz
 	tar xf ncurses-$NCURSES.tar.gz
+	cd ncurses-$NCURSES
+	patch -p1 <"$DIR/ncurses-5.9-android.patch"
+	cd ..
 fi
 if ! [ -d bionic ]; then
 	git clone git://android.git.linaro.org/platform/bionic.git
