@@ -52,3 +52,15 @@
  
  #else /* VMS */
  
+--- gcc/libgomp/env.c.bero	2012-10-17 11:41:34.721539925 +0200
++++ gcc/libgomp/env.c	2012-10-17 11:41:52.847313323 +0200
+@@ -44,6 +44,9 @@
+ #endif
+ #include <limits.h>
+ #include <errno.h>
++#ifdef __BIONIC__
++#include <asm/page.h> // for PAGE_SIZE
++#endif
+ 
+ #ifndef HAVE_STRTOULL
+ # define strtoull(ptr, eptr, base) strtoul (ptr, eptr, base)
