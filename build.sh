@@ -89,6 +89,9 @@ VIMD=`echo $VIM |sed -e 's,\.,,'` # Directory name is actually vim73 for vim-7.3
 if ! [ -d vim$VIMD ]; then
 	wget ftp://ftp.vim.org/pub/vim/unix/vim-$VIM.tar.bz2
 	tar xf vim-$VIM.tar.bz2
+	cd vim$VIMD
+	patch -p1 <"$DIR/vim-7.3-crosscompile.patch"
+	cd ..
 fi
 cd ..
 export PATH="$DIR/tc-wrapper:$TC/bin:$PATH"
