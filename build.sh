@@ -241,6 +241,7 @@ make install DESTDIR=$DEST
 # Get rid of most terminfo files... We just want:
 # screen -- used by Android Terminal Emulator and just generally useful
 # linux, xterm and variants -- useful when ssh-ing in
+# vt100 -- that's what we get from "adb shell"
 rm -rf	"$DEST"/system/share/terminfo/[0-9]* \
 	"$DEST"/system/share/terminfo/[a-k]* \
 	"$DEST"/system/share/terminfo/l/l[a-h]* \
@@ -255,7 +256,16 @@ rm -rf	"$DEST"/system/share/terminfo/[0-9]* \
 	"$DEST"/system/share/terminfo/s/screwpoint \
 	"$DEST"/system/share/terminfo/s/scrhp \
 	"$DEST"/system/share/terminfo/s/s[d-z]* \
-	"$DEST"/system/share/terminfo/[t-w]* \
+	"$DEST"/system/share/terminfo/[t-u]* \
+	"$DEST"/system/share/terminfo/v/v[0-9]* \
+	"$DEST"/system/share/terminfo/v/v[a-s]* \
+	"$DEST"/system/share/terminfo/v/vt100-am \
+	"$DEST"/system/share/terminfo/v/vt102* \
+	"$DEST"/system/share/terminfo/v/vt1[1-9]* \
+	"$DEST"/system/share/terminfo/v/vt[2-9]* \
+	"$DEST"/system/share/terminfo/v/vt-* \
+	"$DEST"/system/share/terminfo/v/v[u-z]* \
+	"$DEST"/system/share/terminfo/w* \
 	"$DEST"/system/share/terminfo/x/x[0-9]* \
 	"$DEST"/system/share/terminfo/x/x[a-s]* \
 	"$DEST"/system/share/terminfo/x/xtalk* \
