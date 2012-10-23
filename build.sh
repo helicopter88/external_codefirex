@@ -278,3 +278,13 @@ vim_cv_memmove_handles_overlap=yes \
 make $SMP STRIP=$TC/bin/arm-linux-androideabi-strip
 make install DESTDIR=$DEST STRIP=$TC/bin/arm-linux-androideabi-strip
 cd ..
+
+# strip everything so we can fit into the limited
+# /system space on GNexus
+# set +e because the strip command will fail, given it will also get
+# to "strip" non-binaries.
+set +e
+find "$DEST" |xargs $TC/bin/arm-linux-androideabi-strip --strip-unneeded
+echo
+echo Toolchain build successful.
+echo The native toolchain can be found in $DEST.
