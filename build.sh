@@ -20,6 +20,8 @@
 # Don't edit anything below unless you know exactly what you're doing.
 set -e
 
+export LC_ALL=C
+
 DIR="$(readlink -f $(dirname $0))"
 cd "$DIR"
 if ! [ -d android-toolchain-eabi ]; then
@@ -206,6 +208,10 @@ make $SMP
 make install DESTDIR=$DEST
 cd ..
 
+# TODO Actually build bionic instead of cheating by pulling those
+# from the prebuilt toolchain
+cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
+
 rm -rf make
 mkdir -p make
 cd make
@@ -232,6 +238,30 @@ $SRC/ncurses-$NCURSES/configure \
 	--with-shared
 make $SMP
 make install DESTDIR=$DEST
+# Get rid of most terminfo files... We just want:
+# screen -- used by Android Terminal Emulator and just generally useful
+# linux, xterm and variants -- useful when ssh-ing in
+rm -rf	"$DEST"/system/share/terminfo/[0-9]* \
+	"$DEST"/system/share/terminfo/[a-k]* \
+	"$DEST"/system/share/terminfo/l/l[a-h]* \
+	"$DEST"/system/share/terminfo/l/li[a-m]* \
+	"$DEST"/system/share/terminfo/l/li[o-z]* \
+	"$DEST"/system/share/terminfo/l/l[j-z]* \
+	"$DEST"/system/share/terminfo/[m-r]* \
+	"$DEST"/system/share/terminfo/s/s[0-9]* \
+	"$DEST"/system/share/terminfo/s/s[a-b]* \
+	"$DEST"/system/share/terminfo/s/sc[0-9]* \
+	"$DEST"/system/share/terminfo/s/sc[a-q]* \
+	"$DEST"/system/share/terminfo/s/screwpoint \
+	"$DEST"/system/share/terminfo/s/scrhp \
+	"$DEST"/system/share/terminfo/s/s[d-z]* \
+	"$DEST"/system/share/terminfo/[t-w]* \
+	"$DEST"/system/share/terminfo/x/x[0-9]* \
+	"$DEST"/system/share/terminfo/x/x[a-s]* \
+	"$DEST"/system/share/terminfo/x/xtalk* \
+	"$DEST"/system/share/terminfo/x/x[u-z]* \
+	"$DEST"/system/share/terminfo/[y-z]* \
+	"$DEST"/system/share/terminfo/[A-Z]*
 cd ..
 
 rm -rf vim
