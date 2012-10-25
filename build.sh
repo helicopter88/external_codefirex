@@ -210,6 +210,9 @@ make $SMP
 make install DESTDIR=$DEST
 cd ..
 
+# Remove superfluous bits
+rm -rf "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed
+
 # TODO Actually build bionic instead of cheating by pulling those
 # from the prebuilt toolchain
 cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
