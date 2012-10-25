@@ -213,6 +213,24 @@ cd ..
 # Remove superfluous bits
 rm -rf "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed
 
+# FIXME we need some handling of /system/lib/armv7-a vs.
+# /system/lib/armv7-a/thumb based on -mthumb vs. -mno-thumb
+# For now, we'll default to armv7-a and at least get a working
+# binary without having to specify -L/system/lib/armv7-a on the
+# command line...
+# Stock android solves this by just using static libgcc, but why
+# should we duplicate code that much?
+mv "$DEST"/system/lib/armv7-a/libgcc_s.so* "$DEST"/system/lib/
+# This is a little wrong because Android has a libstdc++.so (without .6)
+# and that one is rather different, so we can't link to the .6 variant.
+# Longer term, we need to either get rid of gcc's libstdc++ and use
+# stlport (like stock Android), but patch gcc to know about it, or make
+# Android use regular libstdc++.
+# The latter is probably better for technical reasons, but the former
+# is the only thing that will be accepted by AOSP because of libstdc++'s
+# non-BSD licensing.
+ln -s armv7-a/libstdc++.so.6 "$DEST"/system/lib/
+
 # TODO Actually build bionic instead of cheating by pulling those
 # from the prebuilt toolchain
 cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
@@ -292,6 +310,7 @@ vim_cv_memmove_handles_overlap=yes \
 		--host=arm-linux-androideabi
 make $SMP STRIP=$TC/bin/arm-linux-androideabi-strip
 make install DESTDIR=$DEST STRIP=$TC/bin/arm-linux-androideabi-strip
+ln -s vim "$DEST"/system/bin/vi
 cd ..
 
 # strip everything so we can fit into the limited
