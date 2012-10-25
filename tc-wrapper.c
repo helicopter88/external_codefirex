@@ -155,8 +155,20 @@ int main(int argc, char **argv) {
 			new_argv[arg++]=ccld_extras[i];
 	}
 	if(mode & SHLD) {
-		for(int i=0; i<sizeof(shld_extras)/sizeof(char*); i++)
+		for(int i=0; i<sizeof(shld_extras)/sizeof(char*); i++) {
+			if(strstr(shld_extras[i], "crtbegin_so.o")) { // Make sure we don't list this twice...
+				int found = 0;
+				for(int j=0; j<argc; j++) {
+					if(strstr(argv[j], "crtbegin_so.o")) {
+						found = 1;
+						break;
+					}
+				}
+				if(found)
+					continue;
+			}
 			new_argv[arg++]=shld_extras[i];
+		}
 	}
 	new_argv[arg]=0;
 	FILE *f=fopen("/tmp/LOG", "a");

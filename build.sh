@@ -189,6 +189,7 @@ cd ..
 
 # TODO build CLooG and friends for graphite
 
+export CXXFLAGS="-O2 -frtti"
 rm -rf gcc
 mkdir -p gcc
 cd gcc
@@ -196,11 +197,12 @@ $SRC/gcc/configure \
 	--prefix=/system \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi \
-	--enable-languages=c \
+	--enable-languages=c,c++ \
 	--with-gnu-as \
 	--with-gnu-ar \
 	--disable-libssp \
 	--disable-libmudflap \
+	--disable-libitm \
 	--disable-nls \
 	--disable-libquadmath \
 	--disable-sjlj-exceptions
