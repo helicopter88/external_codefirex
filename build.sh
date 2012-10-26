@@ -220,7 +220,9 @@ make install DESTDIR=$DEST
 cd ..
 
 # Remove superfluous bits
-rm -rf "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed
+rm -rf \
+	"$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed \
+	"$DEST"/system/share/gcc-*
 
 # Get rid of superfluous/obsolete multilibbing, Thumb-2 and ARM are
 # always interworkable
@@ -238,6 +240,9 @@ rm "$DEST"/system/lib/armv7-a/libstdc++.so
 
 mv "$DEST"/system/lib/armv7-a/* "$DEST"/system/lib/
 rmdir "$DEST"/system/lib/armv7-a
+
+# Libtool sucks
+rm -f "$DEST"/system/lib/*.la
 
 # TODO Actually build bionic instead of cheating by pulling those
 # from the prebuilt toolchain
@@ -274,7 +279,8 @@ make install DESTDIR=$DEST
 rm -rf \
 	"$DEST"/system/lib/libform* \
 	"$DEST"/system/lib/libmenu* \
-	"$DEST"/system/lib/libpanel*
+	"$DEST"/system/lib/libpanel* \
+	"$DEST"/system/lib/libncurses*.a
 
 # Get rid of most terminfo files... We just want:
 # screen -- used by Android Terminal Emulator and just generally useful
@@ -327,6 +333,37 @@ make $SMP STRIP=$TC/bin/arm-linux-androideabi-strip
 make install DESTDIR=$DEST STRIP=$TC/bin/arm-linux-androideabi-strip
 ln -s vim "$DEST"/system/bin/vi
 cd ..
+
+# save space (from vim)
+rm -rf \
+	"$DEST"/system/share/vim/vim$VIMD/doc \
+	"$DEST"/system/share/vim/vim$VIMD/tutor \
+	"$DEST"/system/share/vim/vim$VIMD/print \
+	"$DEST"/system/bin/vimtutor
+pushd "$DEST"/system/share/vim/vim$VIMD/syntax
+for i in *; do
+	[ "$i" = "config.vim" ] || \
+	[ "$i" = "conf.vim" ] || \
+	[ "$i" = "cpp.vim" ] || \
+	[ "$i" = "c.vim" ] || \
+	[ "$i" = "doxygen.vim" ] || \
+	[ "$i" = "html.vim" ] || \
+	[ "$i" = "javascript.vim" ] || \
+	[ "$i" = "java.vim" ] || \
+	[ "$i" = "manual.vim" ] || \
+	[ "$i" = "sh.vim" ] || \
+	[ "$i" = "syncolor.vim" ] || \
+	[ "$i" = "synload.vim" ] || \
+	[ "$i" = "syntax.vim" ] || \
+	[ "$i" = "vim.vim" ] || \
+		rm -f "$i"
+done
+popd
+
+# Save space (from stuff accumulated by all projects)
+rm -rf \
+	"$DEST"/share/doc \
+	"$DEST"/share/info
 
 # strip everything so we can fit into the limited
 # /system space on GNexus
