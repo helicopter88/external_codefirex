@@ -17,6 +17,9 @@
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
+export CFLAGS="$CFLAGS -Os -march=armv7-a"
+export CXXFLAGS="$CXXFLAGS -Os -march=armv7-a"
+
 # Don't edit anything below unless you know exactly what you're doing.
 set -e
 
@@ -69,6 +72,7 @@ fi
 if ! [ -d gcc ]; then
 	bzr branch $GCC gcc
 	patch -p0 <"$DIR/gcc-4.7-android-workarounds.patch"
+	patch -p0 <"$DIR/gcc-4.7-no-unneeded-multilib.patch"
 fi
 if ! [ -d make-$MAKE ]; then
 	wget ftp://ftp.gnu.org/gnu/make/make-$MAKE.tar.bz2
@@ -127,6 +131,8 @@ $SRC/binutils/binutils-$BINUTILS/configure \
 	--prefix=/system \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi \
+	--enable-shared \
+	--disable-static \
 	--disable-gold \
 	--disable-nls
 make $SMP
@@ -140,6 +146,7 @@ cd gmp
 $SRC/gmp/gmp-$GMP/configure \
 	--prefix=/system \
 	--disable-nls \
+	--disable-static \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi
 make $SMP
@@ -152,6 +159,7 @@ mkdir -p mpfr
 cd mpfr
 $SRC/mpfr/mpfr-$MPFR/configure \
 	--prefix=/system \
+	--disable-static \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi \
 	--with-sysroot=$DEST \
@@ -180,6 +188,7 @@ popd
 rm -f $DEST/system/lib/*.la
 $SRC/mpc/mpc-$MPC/configure \
 	--prefix=/system \
+	--disable-static \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi
 make $SMP
@@ -213,23 +222,22 @@ cd ..
 # Remove superfluous bits
 rm -rf "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed
 
-# FIXME we need some handling of /system/lib/armv7-a vs.
-# /system/lib/armv7-a/thumb based on -mthumb vs. -mno-thumb
-# For now, we'll default to armv7-a and at least get a working
-# binary without having to specify -L/system/lib/armv7-a on the
-# command line...
-# Stock android solves this by just using static libgcc, but why
-# should we duplicate code that much?
-mv "$DEST"/system/lib/armv7-a/libgcc_s.so* "$DEST"/system/lib/
-# This is a little wrong because Android has a libstdc++.so (without .6)
-# and that one is rather different, so we can't link to the .6 variant.
-# Longer term, we need to either get rid of gcc's libstdc++ and use
-# stlport (like stock Android), but patch gcc to know about it, or make
-# Android use regular libstdc++.
+# Get rid of superfluous/obsolete multilibbing, Thumb-2 and ARM are
+# always interworkable
+rm -rf "$DEST"/system/lib/armv7-a/thumb
+
+# Problem: Android has a libstdc++.so that is rather different from
+# ours -- it's kind of libsupc++ supplemented by stlport.
+# One possibility is to make gcc use stlport - the other is to get
+# rid of Android's "libstdc++" in favor of the real thing.
 # The latter is probably better for technical reasons, but the former
 # is the only thing that will be accepted by AOSP because of libstdc++'s
 # non-BSD licensing.
-ln -s armv7-a/libstdc++.so.6 "$DEST"/system/lib/
+# People will just have to link to .so.6 manually if they need STL for now
+rm "$DEST"/system/lib/armv7-a/libstdc++.so
+
+mv "$DEST"/system/lib/armv7-a/* "$DEST"/system/lib/
+rmdir "$DEST"/system/lib/armv7-a
 
 # TODO Actually build bionic instead of cheating by pulling those
 # from the prebuilt toolchain
@@ -261,6 +269,13 @@ $SRC/ncurses-$NCURSES/configure \
 	--with-shared
 make $SMP
 make install DESTDIR=$DEST
+
+# Get rid of components we don't need, we just need what we need to run vim
+rm -rf \
+	"$DEST"/system/lib/libform* \
+	"$DEST"/system/lib/libmenu* \
+	"$DEST"/system/lib/libpanel*
+
 # Get rid of most terminfo files... We just want:
 # screen -- used by Android Terminal Emulator and just generally useful
 # linux, xterm and variants -- useful when ssh-ing in

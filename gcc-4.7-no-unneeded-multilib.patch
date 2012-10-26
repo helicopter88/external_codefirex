@@ -1,0 +1,10 @@
+--- gcc/gcc/config/arm/t-linux-androideabi.bero	2012-10-26 01:05:16.691895997 +0200
++++ gcc/gcc/config/arm/t-linux-androideabi	2012-10-26 01:05:25.432786720 +0200
+@@ -1,5 +1,5 @@
+-MULTILIB_OPTIONS     = march=armv7-a mthumb
+-MULTILIB_DIRNAMES    = armv7-a thumb
++MULTILIB_OPTIONS     =
++MULTILIB_DIRNAMES    =
+ MULTILIB_EXCEPTIONS  =
+ MULTILIB_MATCHES     =
+ MULTILIB_OSDIRNAMES  =
