@@ -230,6 +230,7 @@ $SRC/gcc/configure \
 	--enable-languages=c,c++ \
 	--with-gnu-as \
 	--with-gnu-ar \
+	--disable-shared \
 	--disable-libssp \
 	--disable-libmudflap \
 	--disable-libitm \
