@@ -73,6 +73,7 @@ if ! [ -d gcc ]; then
 	bzr branch $GCC gcc
 	patch -p0 <"$DIR/gcc-4.7-android-workarounds.patch"
 	patch -p0 <"$DIR/gcc-4.7-no-unneeded-multilib.patch"
+	patch -p0 <"$DIR/gcc-4.7-stlport.patch"
 fi
 if ! [ -d make-$MAKE ]; then
 	wget ftp://ftp.gnu.org/gnu/make/make-$MAKE.tar.bz2
@@ -88,6 +89,12 @@ fi
 if ! [ -d bionic ]; then
 	git clone git://android.git.linaro.org/platform/bionic.git
 	cd bionic
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+fi
+if ! [ -d stlport ]; then
+	git clone git://android.git.linaro.org/platform/external/stlport.git
+	cd stlport
 	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
 	cd ..
 fi
@@ -118,6 +125,20 @@ mkdir -p "$DEST"/system/include
 for i in libc/include libc/arch-arm/include libc/kernel/common libc/kernel/arch-arm libm/include; do
 	cp -a src/bionic/$i/* "$DEST"/system/include
 done
+mkdir -p "$DEST/system/include/libstdc++"
+cp -a src/bionic/libstdc++/include "$DEST"/system/include/libstdc++/
+# We'll need stlport headers too, as we're disabling libstdc++ when
+# building gcc
+cp -a src/stlport/stlport "$DEST"/system/include/
+# Make them match the include directory structure we're building
+sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' "$DEST"/system/include/stlport/stl/config/_android.h
+# And don't insist on -DANDROID when gcc already defines __ANDROID__ for us
+sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__ANDROID__),g' "$DEST"/system/include/stlport/stl/config/_system.h
+
+# And don't insist on -DANDROID when Bionic gives us a define...
+#sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__BIONIC__),g' "$DEST"/system/include/stlport/stl/config/_system.h
+# And make sure we actually get Bionic's define
+#sed -i -e '/define __stl_config__system_h/i#include <sys/cdefs.h>' "$DEST"/system/include/stlport/stl/config/_system.h
 
 rm -rf build
 mkdir build
@@ -224,22 +245,22 @@ rm -rf \
 	"$DEST"/system/lib/gcc/arm-linux-androideabi/*/include-fixed \
 	"$DEST"/system/share/gcc-*
 
+# Merge gcc headers into the /system/include directory so stlport
+# can make (invalid) assumptions about their locations
+for i in "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include/*.h; do
+	[ -e "$DEST"/system/include/"`basename $i`" ] || mv $i "$DEST"/system/include/
+done
+
 # Get rid of superfluous/obsolete multilibbing, Thumb-2 and ARM are
 # always interworkable
 rm -rf "$DEST"/system/lib/armv7-a/thumb
-
-# Problem: Android has a libstdc++.so that is rather different from
-# ours -- it's kind of libsupc++ supplemented by stlport.
-# One possibility is to make gcc use stlport - the other is to get
-# rid of Android's "libstdc++" in favor of the real thing.
-# The latter is probably better for technical reasons, but the former
-# is the only thing that will be accepted by AOSP because of libstdc++'s
-# non-BSD licensing.
-# People will just have to link to .so.6 manually if they need STL for now
-rm "$DEST"/system/lib/armv7-a/libstdc++.so
-
 mv "$DEST"/system/lib/armv7-a/* "$DEST"/system/lib/
 rmdir "$DEST"/system/lib/armv7-a
+
+# Get rid of libstdc++ - Android uses stlport instead
+rm -rf \
+	"$DEST"/system/include/c++ \
+	"$DEST"/system/lib/libstdc++*
 
 # Libtool sucks
 rm -f "$DEST"/system/lib/*.la
@@ -280,7 +301,17 @@ rm -rf \
 	"$DEST"/system/lib/libform* \
 	"$DEST"/system/lib/libmenu* \
 	"$DEST"/system/lib/libpanel* \
-	"$DEST"/system/lib/libncurses*.a
+	"$DEST"/system/lib/libncurses*.a \
+	"$DEST"/system/bin/*captoinfo \
+	"$DEST"/system/bin/*clear \
+	"$DEST"/system/bin/*infocmp \
+	"$DEST"/system/bin/*infotocap \
+	"$DEST"/system/bin/*reset \
+	"$DEST"/system/bin/*tabs \
+	"$DEST"/system/bin/*tic \
+	"$DEST"/system/bin/*toe \
+	"$DEST"/system/bin/*tput \
+	"$DEST"/system/bin/*tset
 
 # Get rid of most terminfo files... We just want:
 # screen -- used by Android Terminal Emulator and just generally useful
@@ -307,6 +338,7 @@ rm -rf	"$DEST"/system/share/terminfo/[0-9]* \
 	"$DEST"/system/share/terminfo/v/vt102* \
 	"$DEST"/system/share/terminfo/v/vt1[1-9]* \
 	"$DEST"/system/share/terminfo/v/vt[2-9]* \
+	"$DEST"/system/share/terminfo/v/vt[a-z]* \
 	"$DEST"/system/share/terminfo/v/vt-* \
 	"$DEST"/system/share/terminfo/v/v[u-z]* \
 	"$DEST"/system/share/terminfo/w* \
@@ -339,7 +371,12 @@ rm -rf \
 	"$DEST"/system/share/vim/vim$VIMD/doc \
 	"$DEST"/system/share/vim/vim$VIMD/tutor \
 	"$DEST"/system/share/vim/vim$VIMD/print \
-	"$DEST"/system/bin/vimtutor
+	"$DEST"/system/bin/vimtutor \
+	"$DEST"/system/bin/vimdiff \
+	"$DEST"/system/bin/view \
+	"$DEST"/system/bin/rview \
+	"$DEST"/system/bin/rvim
+
 pushd "$DEST"/system/share/vim/vim$VIMD/syntax
 for i in *; do
 	[ "$i" = "config.vim" ] || \
@@ -362,8 +399,8 @@ popd
 
 # Save space (from stuff accumulated by all projects)
 rm -rf \
-	"$DEST"/share/doc \
-	"$DEST"/share/info
+	"$DEST"/system/share/doc \
+	"$DEST"/system/share/info
 
 # strip everything so we can fit into the limited
 # /system space on GNexus

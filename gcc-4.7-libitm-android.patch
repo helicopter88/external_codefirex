@@ -1,0 +1,22 @@
+--- src/gcc/libitm/config/arm/hwcap.cc.bero	2012-10-25 00:31:57.983031936 +0200
++++ src/gcc/libitm/config/arm/hwcap.cc	2012-10-25 01:13:58.143525595 +0200
+@@ -40,7 +40,19 @@ int GTM_hwcap HIDDEN = 0
+ 
+ #ifdef __linux__
+ #include <unistd.h>
++#ifdef __BIONIC__
++#include <fcntl.h>
++// From glibc elf.h
++typedef struct
++{
++  uint32_t a_type;
++  union {
++    uint32_t a_val;
++  } a_un;
++} Elf32_auxv_t;
++#else
+ #include <sys/fcntl.h>
++#endif
+ #include <elf.h>
+ 
+ static void __attribute__((constructor))

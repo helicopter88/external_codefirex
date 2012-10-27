@@ -1,0 +1,27 @@
+--- gcc/gcc/config/linux-android.h.bero	2012-10-27 02:59:09.875320808 +0200
++++ gcc/gcc/config/linux-android.h	2012-10-27 02:59:49.515825233 +0200
+@@ -47,7 +47,8 @@
+ 
+ #define ANDROID_CC1PLUS_SPEC						\
+   "%{!fexceptions:%{!fno-exceptions: -fno-exceptions}} "		\
+-  "%{!frtti:%{!fno-rtti: -fno-rtti}}"
++  "%{!frtti:%{!fno-rtti: -fno-rtti}} "					\
++  "%{!nostdinc: -isystem /system/include/stlport}"
+ 
+ #define ANDROID_LIB_SPEC \
+   "%{!static: -ldl}"
+--- gcc/gcc/cp/g++spec.c.bero	2012-10-27 02:39:28.779086543 +0200
++++ gcc/gcc/cp/g++spec.c	2012-10-27 02:41:25.434628148 +0200
+@@ -326,6 +326,12 @@ lang_specific_driver (struct cl_decoded_
+ 		       CL_DRIVER, &new_decoded_options[j]);
+       added_libraries++;
+       j++;
++      /* Ugly but effective hack for Android: Add -lstlport as well */
++      generate_option (OPT_l,
++		       "stlport", 1,
++		       CL_DRIVER, &new_decoded_options[j]);
++      added_libraries++;
++      j++;
+       /* Add target-dependent static library, if necessary.  */
+       if ((static_link || library > 1) && LIBSTDCXX_STATIC != NULL)
+ 	{
