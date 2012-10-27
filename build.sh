@@ -263,6 +263,9 @@ rm -rf \
 	"$DEST"/system/include/c++ \
 	"$DEST"/system/lib/libstdc++*
 
+# For compatibility with make defaults
+ln -s gcc "$DEST"/system/bin/cc
+
 # Libtool sucks
 rm -f "$DEST"/system/lib/*.la
 
