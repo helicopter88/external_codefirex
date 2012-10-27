@@ -400,7 +400,8 @@ popd
 # Save space (from stuff accumulated by all projects)
 rm -rf \
 	"$DEST"/system/share/doc \
-	"$DEST"/system/share/info
+	"$DEST"/system/share/info \
+	"$DEST"/system/share/man
 
 # strip everything so we can fit into the limited
 # /system space on GNexus
