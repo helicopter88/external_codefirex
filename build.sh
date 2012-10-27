@@ -401,6 +401,9 @@ for i in *; do
 done
 popd
 
+# Set some nice defaults
+mv "$DEST"/system/share/vim/vim$VIMD/vimrc_example.vim "$DEST"/system/share/vim/vimrc
+
 # Save space (from stuff accumulated by all projects)
 rm -rf \
 	"$DEST"/system/share/doc \
