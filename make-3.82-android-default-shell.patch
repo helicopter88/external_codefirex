@@ -1,0 +1,14 @@
+--- make-3.82/job.c.bero	2012-10-30 16:40:20.379593307 +0100
++++ make-3.82/job.c	2012-10-30 16:41:17.095062673 +0100
+@@ -69,6 +69,11 @@ int batch_mode_shell = 0;
+ char default_shell[] = "";
+ int batch_mode_shell = 0;
+ 
++#elif defined (__BIONIC__) /* Android */
++
++char default_shell[] = "/system/bin/sh";
++int batch_mode_shell = 0;
++
+ #else
+ 
+ char default_shell[] = "/bin/sh";

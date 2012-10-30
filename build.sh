@@ -78,6 +78,9 @@ fi
 if ! [ -d make-$MAKE ]; then
 	wget ftp://ftp.gnu.org/gnu/make/make-$MAKE.tar.bz2
 	tar xf make-$MAKE.tar.bz2
+	cd make-$MAKE
+	patch -p1 <"$DIR/make-3.82-android-default-shell.patch"
+	cd ..
 fi
 if ! [ -d ncurses-$NCURSES ]; then
 	wget ftp://invisible-island.net/ncurses/ncurses-$NCURSES.tar.gz
