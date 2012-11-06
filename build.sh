@@ -543,6 +543,16 @@ rm -rf \
 	"$DEST"/system/share/info \
 	"$DEST"/system/share/man
 
+# Get rid of Bionic and stlport -- they're already included in Android
+rm -rf \
+	"$DEST"/system/lib/libc.so \
+	"$DEST"/system/lib/libstdc++.so \
+	"$DEST"/system/lib/libstlport.so \
+	"$DEST"/system/lib/libm.so \
+	"$DEST"/system/lib/libthread_db.so \
+	"$DEST"/system/lib/libc_malloc*.so \
+	"$DEST"/system/lib/libdl.so
+
 # strip everything so we can fit into the limited
 # /system space on GNexus
 # set +e because the strip command will fail, given it will also get
