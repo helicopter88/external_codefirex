@@ -210,10 +210,12 @@ int main(int argc, char **argv) {
 		}
 	}
 	new_argv[arg]=0;
+#ifdef DEBUG
 	FILE *f=fopen("/tmp/LOG", "a");
 	for(int i=0; i<arg; i++)
 		fprintf(f, "%s ", new_argv[i]);
 	fprintf(f, "\n\n");
 	fclose(f);
+#endif
 	execv(new_argv[0], new_argv);
 }
