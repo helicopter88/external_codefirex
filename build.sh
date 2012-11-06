@@ -268,7 +268,7 @@ $SRC/binutils/binutils-$BINUTILS/configure \
 	--host=arm-linux-androideabi \
 	--enable-shared \
 	--disable-static \
-	--disable-gold \
+	--enable-gold=default \
 	--disable-nls
 make $SMP
 make install DESTDIR=$DEST
