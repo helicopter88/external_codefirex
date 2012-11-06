@@ -10,6 +10,10 @@
 [ -z "$NCURSES" ] && NCURSES=5.9
 [ -z "$VIM" ] && VIM=7.3
 [ -z "$ANDROID" ] && ANDROID=4.1.2
+# rpm support isn't working yet
+[ -z "$WITH_RPM" ] && WITH_RPM=false
+[ -z "$DB" ] && DB=5.3.15
+[ -z "$POPT" ] && POPT=1.16
 
 # Installation location
 [ -z "$DEST" ] && DEST=/tmp/android-native-toolchain
@@ -17,8 +21,8 @@
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
-export CFLAGS="$CFLAGS -Os -march=armv7-a"
-export CXXFLAGS="$CXXFLAGS -Os -march=armv7-a"
+export TARGET_CFLAGS="$CFLAGS -Os -march=armv7-a"
+export TARGET_CXXFLAGS="$CXXFLAGS -Os -march=armv7-a"
 
 # Don't edit anything below unless you know exactly what you're doing.
 set -e
@@ -27,17 +31,12 @@ export LC_ALL=C
 
 DIR="$(readlink -f $(dirname $0))"
 cd "$DIR"
-if ! [ -d android-toolchain-eabi ]; then
-	wget https://android-build.linaro.org/jenkins/view/Toolchain/job/linaro-android_toolchain-4.7-bzr/lastSuccessfulBuild/artifact/build/out/android-toolchain-eabi-4.7-daily-linux-x86.tar.bz2
-	tar xf android-toolchain-eabi-4.7-daily-linux-x86.tar.bz2
-fi
-TC="$DIR/android-toolchain-eabi"
 if ! [ -d tc-wrapper ]; then
 	# Workaround for
 	#	1. toolchain not being properly sysrooted
 	#	2. gcc not making a difference between CPPFLAGS for build and host machine
 	mkdir tc-wrapper
-	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"`pwd`/android-toolchain-eabi\" -DDESTDIR=\"/tmp/android-native-toolchain\"
+	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"/tmp/arm-linux-androideabi\" -DDESTDIR=\"/tmp/android-native-toolchain\"
 	for i in cpp g++ c++; do
 		ln -s arm-linux-androideabi-gcc tc-wrapper/arm-linux-androideabi-$i
 	done
@@ -89,17 +88,74 @@ if ! [ -d ncurses-$NCURSES ]; then
 	patch -p1 <"$DIR/ncurses-5.9-android.patch"
 	cd ..
 fi
-if ! [ -d bionic ]; then
+if ! [ -d android ]; then
+	mkdir -p android
+	cd android
 	git clone git://android.git.linaro.org/platform/bionic.git
 	cd bionic
 	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
 	cd ..
-fi
-if ! [ -d stlport ]; then
+	git clone git://android.git.linaro.org/platform/build.git
+	cd build
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+	mkdir -p device/linaro
+	cd device/linaro
+	git clone git://android.git.linaro.org/device/linaro/common.git
+	cd common
+	git checkout -b linaro-ics origin/linaro-ics
+	cd ..
+	git clone git://android.git.linaro.org/device/linaro/pandaboard.git
+	cd pandaboard
+	git checkout -b linaro-jb origin/linaro-jb
+	cd ..
+	cd ../..
+	mkdir frameworks
+	cd frameworks
+	git clone git://android.git.linaro.org/platform/frameworks/native.git
+	cd native
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+	cd ..
+	mkdir -p hardware/ti
+	cd hardware/ti
+	git clone git://android.git.linaro.org/platform/hardware/ti/omap4xxx
+	cd omap4xxx
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+	cd ../..
+	mkdir system
+	cd system
+	git clone git://android.git.linaro.org/platform/system/core.git
+	cd core
+	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+	cd ..
+	cd ..
+	mkdir external
+	cd external
 	git clone git://android.git.linaro.org/platform/external/stlport.git
 	cd stlport
 	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
 	cd ..
+	cd ..
+	ln -sf build/core/root.mk Makefile
+	cd ..
+fi
+if $WITH_RPM; then
+	if ! [ -d db-$DB ]; then
+		wget http://download.oracle.com/berkeley-db/db-$DB.tar.gz
+		tar xf db-$DB.tar.gz
+	fi
+	if ! [ -d popt-$POPT ]; then
+		wget http://rpm5.org/files/popt/popt-$POPT.tar.gz
+		tar xf popt-$POPT.tar.gz
+		# popt's config.sub doesn't know about androideabi
+		cp -f /usr/share/automake-1.12/config.sub popt-$POPT/
+	fi
+	if ! [ -d rpm-5.4.10 ]; then
+		svn co svn+ssh://svn.mandriva.com/svn/packages/cooker/rpm/current/SOURCES
+		tar xf SOURCES/rpm-5.4.10.tar.gz
+	fi
 fi
 VIMD=`echo $VIM |sed -e 's,\.,,'` # Directory name is actually vim73 for vim-7.3 etc.
 if ! [ -d vim$VIMD ]; then
@@ -110,7 +166,6 @@ if ! [ -d vim$VIMD ]; then
 	cd ..
 fi
 cd ..
-export PATH="$DIR/tc-wrapper:$TC/bin:$PATH"
 
 rm -rf "$DEST"
 # FIXME this is a pretty awful hack to make sure gcc can find
@@ -126,31 +181,87 @@ rm -rf "$DEST"
 # files from libc/include
 mkdir -p "$DEST"/system/include
 for i in libc/include libc/arch-arm/include libc/kernel/common libc/kernel/arch-arm libm/include; do
-	cp -a src/bionic/$i/* "$DEST"/system/include
+	cp -a src/android/bionic/$i/* "$DEST"/system/include
 done
 mkdir -p "$DEST/system/include/libstdc++"
-cp -a src/bionic/libstdc++/include "$DEST"/system/include/libstdc++/
+cp -a src/android/bionic/libstdc++/include "$DEST"/system/include/libstdc++/
 # We'll need stlport headers too, as we're disabling libstdc++ when
 # building gcc
-cp -a src/stlport/stlport "$DEST"/system/include/
+cp -a src/android/external/stlport/stlport "$DEST"/system/include/
 # Make them match the include directory structure we're building
 sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' "$DEST"/system/include/stlport/stl/config/_android.h
 # And don't insist on -DANDROID when gcc already defines __ANDROID__ for us
 sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__ANDROID__),g' "$DEST"/system/include/stlport/stl/config/_system.h
 
-# And don't insist on -DANDROID when Bionic gives us a define...
-#sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__BIONIC__),g' "$DEST"/system/include/stlport/stl/config/_system.h
-# And make sure we actually get Bionic's define
-#sed -i -e '/define __stl_config__system_h/i#include <sys/cdefs.h>' "$DEST"/system/include/stlport/stl/config/_system.h
-
 rm -rf build
 mkdir build
 cd build
+
+# First of all, build a cross-toolchain for the current host (properly sysrooted)
+export PATH="$DIR/tc-wrapper:/tmp/arm-linux-androideabi/bin:$PATH"
+mkdir -p binutils-host
+cd binutils-host
+$SRC/binutils/binutils-$BINUTILS/configure \
+	--prefix=/tmp/arm-linux-androideabi \
+	--target=arm-linux-androideabi \
+	--enable-gold=default \
+	--enable-shared \
+	--disable-static \
+	--disable-nls \
+	--with-sysroot=$DEST
+make $SMP
+make install
+cd ..
+
+mkdir -p gcc-host-bootstrap
+cd gcc-host-bootstrap
+$SRC/gcc/configure \
+	--prefix=/tmp/arm-linux-androideabi \
+	--target=arm-linux-androideabi \
+	--enable-languages=c,c++ \
+	--with-gnu-as \
+	--with-gnu-ar \
+	--with-gnu-ld \
+	--disable-shared \
+	--disable-libssp \
+	--disable-libmudflap \
+	--disable-libstdc__-v3 \
+	--disable-libitm \
+	--disable-nls \
+	--disable-libquadmath \
+	--disable-sjlj-exceptions \
+	--disable-libgomp \
+	--with-sysroot=$DEST \
+	--with-native-system-header-dir=/system/include
+make $SMP
+make install
+cd ..
+
+mkdir -p bionic
+cd bionic
+ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+mkdir -p "$DEST/system/lib"
+cp ../../src/android/out/target/product/pandaboard/obj/lib/* $DEST/system/lib/
+cd ..
+
+
+export CFLAGS="$TARGET_CFLAGS"
+export CXXFLAGS="$TARGET_CXXFLAGS"
+
+echo "Relevant variables:"
+echo "==================="
+echo "export PATH=\"$PATH\""
+echo "export CFLAGS=\"$CFLAGS\""
+echo "export CXXFLAGS=\"$CXXFLAGS\""
+
 mkdir -p binutils
 cd binutils
-# FIXME gold is disabled for now because of its C++ dependency.
-# Need to integrate stlport into the build before building it,
-# then make it the default
+# FIXME gold is disabled for now because it can't be built
+# against stlport.
+# Need to fix this, then --enable-gold=default
 $SRC/binutils/binutils-$BINUTILS/configure \
 	--prefix=/system \
 	--target=arm-linux-androideabi \
@@ -233,9 +344,11 @@ $SRC/gcc/configure \
 	--enable-languages=c,c++ \
 	--with-gnu-as \
 	--with-gnu-ar \
+	--with-gnu-ld \
 	--disable-shared \
 	--disable-libssp \
 	--disable-libmudflap \
+	--disable-libstdc__-v3 \
 	--disable-libitm \
 	--disable-nls \
 	--disable-libquadmath \
@@ -255,16 +368,10 @@ for i in "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include/*.h; do
 	[ -e "$DEST"/system/include/"`basename $i`" ] || mv $i "$DEST"/system/include/
 done
 
-# Get rid of superfluous/obsolete multilibbing, Thumb-2 and ARM are
-# always interworkable
-rm -rf "$DEST"/system/lib/armv7-a/thumb
-mv "$DEST"/system/lib/armv7-a/* "$DEST"/system/lib/
-rmdir "$DEST"/system/lib/armv7-a
-
 # Get rid of libstdc++ - Android uses stlport instead
-rm -rf \
-	"$DEST"/system/include/c++ \
-	"$DEST"/system/lib/libstdc++*
+#rm -rf \
+#	"$DEST"/system/include/c++ \
+#	"$DEST"/system/lib/libstdc++*
 
 # For compatibility with make defaults
 ln -s gcc "$DEST"/system/bin/cc
@@ -274,7 +381,7 @@ rm -f "$DEST"/system/lib/*.la
 
 # TODO Actually build bionic instead of cheating by pulling those
 # from the prebuilt toolchain
-cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
+#cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
 
 rm -rf make
 mkdir -p make
@@ -368,8 +475,8 @@ vim_cv_memmove_handles_overlap=yes \
 		--prefix=/system \
 		--target=arm-linux-androideabi \
 		--host=arm-linux-androideabi
-make $SMP STRIP=$TC/bin/arm-linux-androideabi-strip
-make install DESTDIR=$DEST STRIP=$TC/bin/arm-linux-androideabi-strip
+make $SMP STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
+make install DESTDIR=$DEST STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
 ln -s vim "$DEST"/system/bin/vi
 cd ..
 
@@ -407,6 +514,29 @@ popd
 # Set some nice defaults
 mv "$DEST"/system/share/vim/vim$VIMD/vimrc_example.vim "$DEST"/system/share/vim/vimrc
 
+if $WITH_RPM; then
+	mkdir db
+	cd db
+	../../src/db-$DB/dist/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --enable-shared --enable-posixmutexes --with-mutex=ARM/gcc-assembly
+	make $SMP
+	make install DESTDIR=$DEST
+	cd ..
+
+	mkdir popt
+	cd popt
+	../../src/popt-$POPT/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
+	make $SMP
+	make install DESTDIR=$DEST
+	cd ..
+
+	mkdir rpm
+	cd rpm
+	ac_cv_va_copy=C99 ../../src/rpm-5.4.10/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
+	make $SMP
+	make install DESTDIR=$DEST
+	cd ..
+fi
+
 # Save space (from stuff accumulated by all projects)
 rm -rf \
 	"$DEST"/system/share/doc \
@@ -418,7 +548,7 @@ rm -rf \
 # set +e because the strip command will fail, given it will also get
 # to "strip" non-binaries.
 set +e
-find "$DEST" |xargs $TC/bin/arm-linux-androideabi-strip --strip-unneeded
+find "$DEST" |xargs /tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip --strip-unneeded
 echo
 echo Toolchain build successful.
 echo The native toolchain can be found in $DEST.

@@ -18,6 +18,8 @@ static const char *cpp_extras[] = {
 	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/include/",
 	"-isystem",
 	DESTDIR "/system/include/",
+	"-isystem",
+	DESTDIR "/system/include/stlport/",
 	"-DANDROID"
 };
 static const char *ccld_extras[] = {
@@ -30,7 +32,7 @@ static const char *ccld_extras[] = {
 	"-Wl,-z,nocopyreloc",
 	"-lc",
 	"-lm",
-	TCROOT "/arm-linux-androideabi/lib/crtbegin_dynamic.o",
+	DESTDIR "/system/lib/crtbegin_dynamic.o",
 	"-Wl,-O2",
 	"-Wl,-z,noexecstack",
 	"-Wl,-z,relro",
@@ -38,8 +40,8 @@ static const char *ccld_extras[] = {
 	"-Wl,--icf=safe",
 	"-Wl,--no-fix-cortex-a8",
 	"-Wl,--no-undefined",
-	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/armv7-a/libgcc.a",
-	TCROOT "/arm-linux-androideabi/lib/crtend_android.o"
+	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/libgcc.a",
+	DESTDIR "/system/lib/crtend_android.o"
 };
 static const char *shld_extras[] = {
 	"-nostdlib",
@@ -50,7 +52,7 @@ static const char *shld_extras[] = {
 	"-Wl,-z,nocopyreloc",
 	"-lc",
 	"-lm",
-	TCROOT "/arm-linux-androideabi/lib/crtbegin_so.o",
+	DESTDIR "/system/lib/crtbegin_so.o",
 	"-Wl,-O2",
 	"-Wl,-z,noexecstack",
 	"-Wl,-z,relro",
@@ -58,7 +60,7 @@ static const char *shld_extras[] = {
 	"-Wl,--icf=safe",
 	"-Wl,--no-fix-cortex-a8",
 	"-Wl,--no-undefined",
-	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/armv7-a/libgcc.a"
+	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/libgcc.a"
 };
 static const char *ld_extras[] = {
 	"-nostdlib",
@@ -70,7 +72,7 @@ static const char *ld_extras[] = {
 	"-z", "nocopyreloc",
 	"-lc",
 	"-lm",
-	TCROOT "/arm-linux-androideabi/lib/crtbegin_dynamic.o",
+	DESTDIR "/system/lib/crtbegin_dynamic.o",
 	"-O2",
 	"-z", "noexecstack",
 	"-z", "relro",
@@ -78,8 +80,8 @@ static const char *ld_extras[] = {
 	"--icf=safe",
 	"--no-fix-cortex-a8",
 	"--no-undefined",
-	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/armv7-a/libgcc.a",
-	TCROOT "/arm-linux-androideabi/lib/crtend_android.o"
+	TCROOT "/lib/gcc/arm-linux-androideabi/" CCVERSION "/libgcc.a",
+	DESTDIR "/system/lib/crtend_android.o"
 };
 static const char *cc_extras[] = {
 	"-march=armv7-a",
