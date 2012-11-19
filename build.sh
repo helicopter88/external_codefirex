@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Wanted versions
-[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.3
+[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.5
 [ -z "$GCC" ] && GCC=lp:gcc-linaro
 [ -z "$GMP" ] && GMP=5.0.5
 [ -z "$MPFR" ] && MPFR=3.1.1
@@ -45,9 +45,9 @@ SRC="$DIR/src"
 [ -d src ] || mkdir src
 cd src
 if ! [ -d binutils ]; then
-	git clone git://android.git.linaro.org/toolchain/binutils.git
+	git clone git://android.git.linaro.org/toolchain/binutils-current.git binutils
 	cd binutils
-	git checkout -b linaro-master origin/linaro-master
+	git checkout -b linaro-$BINUTILS origin/linaro-$BINUTILS
 	cd ..
 fi
 if ! [ -d gmp ]; then
@@ -201,7 +201,7 @@ cd build
 export PATH="$DIR/tc-wrapper:/tmp/arm-linux-androideabi/bin:$PATH"
 mkdir -p binutils-host
 cd binutils-host
-$SRC/binutils/binutils-$BINUTILS/configure \
+$SRC/binutils/configure \
 	--prefix=/tmp/arm-linux-androideabi \
 	--target=arm-linux-androideabi \
 	--enable-gold=default \
@@ -262,7 +262,7 @@ cd binutils
 # FIXME gold is disabled for now because it can't be built
 # against stlport.
 # Need to fix this, then --enable-gold=default
-$SRC/binutils/binutils-$BINUTILS/configure \
+$SRC/binutils/configure \
 	--prefix=/system \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi \
