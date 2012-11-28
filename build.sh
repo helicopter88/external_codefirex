@@ -13,6 +13,7 @@
 # rpm support isn't working yet
 [ -z "$WITH_RPM" ] && WITH_RPM=false
 [ -z "$DB" ] && DB=5.3.15
+[ -z "$BEECRYPT" ] && BEECRYPT=4.2.1
 [ -z "$POPT" ] && POPT=1.16
 
 # Installation location
@@ -152,9 +153,30 @@ if $WITH_RPM; then
 		# popt's config.sub doesn't know about androideabi
 		cp -f /usr/share/automake-1.12/config.sub popt-$POPT/
 	fi
+	if ! [ -d beecrypt-$BEECRYPT ]; then
+		wget http://downloads.sourceforge.net/project/beecrypt/beecrypt/$BEECRYPT/beecrypt-$BEECRYPT.tar.gz
+		tar xf beecrypt-$BEECRYPT.tar.gz
+		cd beecrypt-$BEECRYPT
+		patch -p1 <"$DIR/beecrypt-4.2.1-compile.patch"
+		aclocal
+		libtoolize --force
+		automake -a
+		autoconf
+		# beecrypt's config.sub doesn't know about androideabi
+		cp -f /usr/share/automake-1.12/config.sub .
+		cd ..
+	fi
 	if ! [ -d rpm-5.4.10 ]; then
 		svn co svn+ssh://svn.mandriva.com/svn/packages/cooker/rpm/current/SOURCES
 		tar xf SOURCES/rpm-5.4.10.tar.gz
+	fi
+	if ! [ -d android/external/zlib ]; then
+		cd android/external
+		git clone git://android.git.linaro.org/platform/external/zlib.git
+		cd zlib
+		git checkout -b $ANDROID android-${ANDROID}_r1
+		sed -i -e 's,LOCAL_NDK,# LOCAL_NDK,;s,LOCAL_SDK,# LOCAL_SDK,' Android.mk
+		cd ../../..
 	fi
 fi
 VIMD=`echo $VIM |sed -e 's,\.,,'` # Directory name is actually vim73 for vim-7.3 etc.
@@ -244,9 +266,19 @@ ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modul
 ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
 ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
 mkdir -p "$DEST/system/lib"
+# Android's pthread bits are built into bionic libc -- but lots of traditional
+# Linux configure scripts just hardcode that there's a -lpthread...
+# Let's accomodate them
+touch dummy.c
+arm-linux-androideabi-gcc -O2 -o dummy.o -c dummy.c
+arm-linux-androideabi-ar cru $DEST/system/lib/libpthread.a dummy.o
+rm -f dummy.[co]
+if $WITH_RPM; then
+	ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	cp -L ../../src/android/external/zlib/*.h $DEST/system/include/
+fi
 cp ../../src/android/out/target/product/pandaboard/obj/lib/* $DEST/system/lib/
 cd ..
-
 
 export CFLAGS="$TARGET_CFLAGS"
 export CXXFLAGS="$TARGET_CXXFLAGS"
@@ -519,6 +551,12 @@ if $WITH_RPM; then
 	cd db
 	../../src/db-$DB/dist/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --enable-shared --enable-posixmutexes --with-mutex=ARM/gcc-assembly
 	make $SMP
+	make install DESTDIR=$DEST
+	cd ..
+
+	mkdir beecrypt
+	cd beecrypt
+	../../src/beecrypt-$BEECRYPT/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --without-cplusplus --without-java --without-python --with-gnu-ld
 	make install DESTDIR=$DEST
 	cd ..
 
