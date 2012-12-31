@@ -24,6 +24,11 @@
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
+# Set to true to keep Bionic. (This shouldn't be copied to the device
+# because it's already there -- but it can be useful to do a sysroot-like
+# install.)
+KEEP_BIONIC=false
+
 export TARGET_CFLAGS="$CFLAGS -Os -march=armv7-a"
 export TARGET_CXXFLAGS="$CXXFLAGS -Os -march=armv7-a"
 
@@ -601,15 +606,17 @@ rm -rf \
 	"$DEST"/system/share/info \
 	"$DEST"/system/share/man
 
-# Get rid of Bionic and stlport -- they're already included in Android
-rm -rf \
-	"$DEST"/system/lib/libc.so \
-	"$DEST"/system/lib/libstdc++.so \
-	"$DEST"/system/lib/libstlport.so \
-	"$DEST"/system/lib/libm.so \
-	"$DEST"/system/lib/libthread_db.so \
-	"$DEST"/system/lib/libc_malloc*.so \
-	"$DEST"/system/lib/libdl.so
+if ! $KEEP_BIONIC; then
+	# Get rid of Bionic and stlport -- they're already included in Android
+	rm -rf \
+		"$DEST"/system/lib/libc.so \
+		"$DEST"/system/lib/libstdc++.so \
+		"$DEST"/system/lib/libstlport.so \
+		"$DEST"/system/lib/libm.so \
+		"$DEST"/system/lib/libthread_db.so \
+		"$DEST"/system/lib/libc_malloc*.so \
+		"$DEST"/system/lib/libdl.so
+fi
 
 # strip everything so we can fit into the limited
 # /system space on GNexus
