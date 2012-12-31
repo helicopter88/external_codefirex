@@ -1,0 +1,627 @@
+--- rpm-5.4.10/misc/setproctitle.c.bero	2012-12-31 14:33:14.787212047 +0100
++++ rpm-5.4.10/misc/setproctitle.c	2012-12-31 14:33:32.667997320 +0100
+@@ -159,6 +159,7 @@ initproctitle(int argc, char *argv[], ch
+ 			goto cleanup_enomem;
+ 	new_environ[i] = 0;
+ 
++#ifndef __BIONIC__ /* Bionic doesn't have program_invocation_name */
+ 	if (program_invocation_name)
+ 	{
+ 		title_progname_full = strdup(program_invocation_name);
+@@ -176,6 +177,7 @@ initproctitle(int argc, char *argv[], ch
+ 		program_invocation_name = title_progname_full;
+ 		program_invocation_short_name = title_progname;
+ 	}
++#endif
+ 
+ 	environ = new_environ;
+ 	title_buffer = begin_of_buffer;
+--- rpm-5.4.10/rpmio/fts.c.bero	2012-12-31 14:36:55.564574698 +0100
++++ rpm-5.4.10/rpmio/fts.c	2012-12-31 14:38:04.155752065 +0100
+@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (B
+ #include <string.h>
+ #include <unistd.h>
+ #else
+-#if defined(__UCLIBC__)
++#if defined(__UCLIBC__) || defined(__BIONIC__)
+ #   define __fxstat64(_stat_ver, _fd, _sbp)    fstat((_fd), (_sbp))
+ #endif
+ #if defined(hpux) || defined(__hpux)
+@@ -135,7 +135,11 @@ static char sccsid[] = "@(#)fts.c	8.6 (B
+ 
+ #include "debug.h"
+ 
+-#   define __set_errno(val) (*__errno_location ()) = (val)
++#   ifdef __BIONIC__
++#      define __set_errno(val) errno = val
++#   else
++#      define __set_errno(val) (*__errno_location ()) = (val)
++#   endif
+ #   define __open	open
+ #   define __close	close
+ #   define __fchdir	fchdir
+--- rpm-5.4.10/rpmio/getdate.y.bero	2012-12-31 14:35:00.194947721 +0100
++++ rpm-5.4.10/rpmio/getdate.y	2012-12-31 14:35:13.203791158 +0100
+@@ -87,7 +87,7 @@ struct timeb {
+ /* Some old versions of bison generate parsers that use bcopy.
+    That loses on systems that don't provide the function, so we have
+    to redefine it here.  */
+-#if !defined (HAVE_BCOPY) && defined (HAVE_MEMCPY) && !defined (bcopy)
++#if !defined (HAVE_BCOPY) && defined (HAVE_MEMCPY) && !defined (bcopy) && !defined(__BIONIC__)
+ #define bcopy(from, to, len) memcpy ((to), (from), (len))
+ #endif
+ 
+--- rpm-5.4.10/rpmio/rpmdir.h.bero	2012-12-31 14:38:24.715508686 +0100
++++ rpm-5.4.10/rpmio/rpmdir.h	2012-12-31 14:38:31.860423191 +0100
+@@ -21,7 +21,7 @@
+ typedef struct __dirstream *	AVDIR;
+ typedef struct __dirstream *	DAVDIR;
+ #else
+-# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || defined(__OpenBSD__)
++# if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__BIONIC__)
+ typedef struct __dirstream *	AVDIR;
+ typedef struct __dirstream *	DAVDIR;
+ #else	/* __FreeBSD__ */
+--- rpm-5.4.10/rpmio/rpmgit.h.bero	2012-12-31 14:35:51.370343318 +0100
++++ rpm-5.4.10/rpmio/rpmgit.h	2012-12-31 14:36:03.844193732 +0100
+@@ -167,6 +167,10 @@ void rpmgitPrintOid(const char * msg, co
+ void rpmgitPrintTime(const char * msg, time_t _Ctime, void * _fp)
+ 	/*@*/;
+ 
++/* for Bionic */
++#undef _S
++#undef _C
++
+ void rpmgitPrintSig(const char * msg, const void * _S, void * _fp)
+ 	/*@*/;
+ 
+--- rpm-5.4.10/rpmio/rpmsq.c.bero	2012-12-31 14:38:49.016221124 +0100
++++ rpm-5.4.10/rpmio/rpmsq.c	2012-12-31 14:40:04.812311336 +0100
+@@ -118,7 +118,7 @@ extern int pthread_cond_signal(pthread_c
+ #endif
+ 
+ #include <signal.h>
+-#if !defined(__QNX__)
++#if !defined(__QNX__) && !defined(__BIONIC__)
+ #  include <sys/signal.h>
+ #endif
+ #include <sys/wait.h>
+@@ -222,9 +222,14 @@ static pthread_mutex_t rpmsigTbl_lock =
+     }
+ #define	ADD_REF(__tbl)	(__tbl)->active++
+ #define	SUB_REF(__tbl)	--(__tbl)->active
++#ifdef __BIONIC__
++#define	CLEANUP_HANDLER(__handler, __arg, __oldtypeptr) \
++	pthread_cleanup_push((__handler), (__arg));
++#else
+ #define	CLEANUP_HANDLER(__handler, __arg, __oldtypeptr) \
+     (void) pthread_setcanceltype (PTHREAD_CANCEL_ASYNCHRONOUS, (__oldtypeptr));\
+ 	pthread_cleanup_push((__handler), (__arg));
++#endif
+ #define	CLEANUP_RESET(__execute, __oldtype) \
+     pthread_cleanup_pop(__execute); \
+     (void) pthread_setcanceltype ((__oldtype), &(__oldtype));
+--- rpm-5.4.10/misc/librpmmisc.vers.bero	2012-12-31 15:48:33.284478454 +0100
++++ rpm-5.4.10/misc/librpmmisc.vers	2012-12-31 15:48:55.111219049 +0100
+@@ -234,6 +234,8 @@ LIBRPMMISC_0
+     poptStrippedArgv;
+     poptStuffArgs;
+     rc_main;
++    stpcpy;
++    stpncpy;
+     sqlite3_backup_finish;
+     sqlite3_backup_init;
+     sqlite3_backup_step;
+--- rpm-5.4.10/misc/stpcpy.c.bero	2012-12-31 15:39:14.795063908 +0100
++++ rpm-5.4.10/misc/stpcpy.c	2012-12-31 15:46:42.550799207 +0100
+@@ -27,12 +27,13 @@
+ #undef __stpcpy
+ #undef stpcpy
+ 
++#undef weak_alias
+ #ifndef weak_alias
+ # define __stpcpy stpcpy
+ #endif
+ 
+ /* Copy SRC to DEST, returning the address of the terminating '\0' in DEST.  */
+-char *
++__attribute__((visibility("default"))) __attribute__((used)) char *
+ __stpcpy (dest, src)
+      char *dest;
+      const char *src;
+@@ -45,6 +46,7 @@ __stpcpy (dest, src)
+   while (*s++ != '\0');
+ 
+   return d - 1;
++#warning USED
+ }
+ #ifdef weak_alias
+ weak_alias (__stpcpy, stpcpy)
+--- rpm-5.4.10/rpmio/rpmdir.c.bero	2012-12-31 15:49:34.355750650 +0100
++++ rpm-5.4.10/rpmio/rpmdir.c	2012-12-31 17:52:35.029768532 +0100
+@@ -511,15 +511,28 @@ if (_rpmio_debug)
+ fprintf(stderr, "*** Seekdir(%p,%ld)\n", (void *)dir, (long)offset);
+     if (ISAVMAGIC(dir))
+ 	return avSeekdir(dir, offset);
++#ifdef __BIONIC__
++    // This is pretty bad... But Bionic doesn't have seekdir.
++    // Fortunately nothing relies on it heavily.
++    return;
++#else
+     return seekdir(dir, offset);
++#endif
+ }
+ 
+ off_t Telldir(DIR * dir)
+ {
+     off_t offset = 0;
+ 
++#ifdef __BIONIC__
++    offset = (ISAVMAGIC(dir) ? avTelldir(dir) : -1);
++#else
+     offset = (ISAVMAGIC(dir) ? avTelldir(dir) : telldir(dir));
++#endif
+ if (_rpmio_debug)
+ fprintf(stderr, "*** Telldir(%p) off %ld\n", (void *)dir, (long)offset);
++#ifdef __BIONIC__
++    errno = ENOSYS;
++#endif
+     return offset;
+ }
+--- rpm-5.4.10/rpmio/rpmku.c.bero	2012-12-31 20:09:54.825108840 +0100
++++ rpm-5.4.10/rpmio/rpmku.c	2012-12-31 20:19:55.259095978 +0100
+@@ -83,6 +83,20 @@ kuValue(const char * name)
+ }
+ #endif
+ 
++#ifdef __BIONIC__
++static char *getpass(const char *prompt) {
++    char *pass = (char*)malloc(PASS_MAX);
++    FILE *f=fopen("/dev/tty", "r+");
++    if(!f)
++        return NULL;
++    fgets(pass, PASS_MAX, f);
++    fclose(f);
++    while(pass[strlen(pass)-1] == '\r' || pass[strlen(pass)-1] == '\n')
++	    pass[strlen(pass)-1] = 0;
++    return pass;
++}
++#endif
++
+ /*@-globs -internalglobs -mods @*/
+ char * _GetPass(const char * prompt)
+ {
+--- rpm-5.4.10/rpmio/rpmsq.c.bero	2012-12-31 18:43:19.445172635 +0100
++++ rpm-5.4.10/rpmio/rpmsq.c	2012-12-31 18:48:53.383164976 +0100
+@@ -125,7 +125,7 @@ extern int pthread_cond_signal(pthread_c
+ #include <search.h>
+ 
+ /* portability fallback for sighold(3) */
+-#if !defined(HAVE_SIGHOLD) && defined(HAVE_SIGPROCMASK) && defined(HAVE_SIGADDSET)
++#if (!defined(HAVE_SIGHOLD) && defined(HAVE_SIGPROCMASK) && defined(HAVE_SIGADDSET)) || defined(__BIONIC__)
+ static int __RPM_sighold(int sig)
+ {
+     sigset_t set;
+@@ -139,7 +139,7 @@ static int __RPM_sighold(int sig)
+ #endif
+ 
+ /* portability fallback for sigrelse(3) */
+-#if !defined(HAVE_SIGRELSE) && defined(HAVE_SIGPROCMASK) && defined(HAVE_SIGDELSET)
++#if (!defined(HAVE_SIGRELSE) && defined(HAVE_SIGPROCMASK) && defined(HAVE_SIGDELSET)) || defined(__BIONIC__)
+ static int __RPM_sigrelse(int sig)
+ {
+     sigset_t set;
+@@ -153,7 +153,7 @@ static int __RPM_sigrelse(int sig)
+ #endif
+ 
+ /* portability fallback for sigpause(3) */
+-#if !defined(HAVE_SIGPAUSE) && defined(HAVE_SIGEMPTYSET) && defined(HAVE_SIGADDSET) && defined(HAVE_SIGSUSPEND)
++#if (!defined(HAVE_SIGPAUSE) && defined(HAVE_SIGEMPTYSET) && defined(HAVE_SIGADDSET) && defined(HAVE_SIGSUSPEND)) || defined(__BIONIC__)
+ static int __RPM_sigpause(int sig)
+ {
+     sigset_t set;
+@@ -167,7 +167,7 @@ static int __RPM_sigpause(int sig)
+ #endif
+ 
+ /* portability fallback for insque(3)/remque(3) */
+-#if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__QNX__)
++#if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__QNX__) || defined(__BIONIC__)
+ struct qelem {
+   struct qelem *q_forw;
+   struct qelem *q_back;
+@@ -225,14 +225,16 @@ static pthread_mutex_t rpmsigTbl_lock =
+ #ifdef __BIONIC__
+ #define	CLEANUP_HANDLER(__handler, __arg, __oldtypeptr) \
+ 	pthread_cleanup_push((__handler), (__arg));
++#define	CLEANUP_RESET(__execute, __oldtype) \
++    pthread_cleanup_pop(__execute);
+ #else
+ #define	CLEANUP_HANDLER(__handler, __arg, __oldtypeptr) \
+     (void) pthread_setcanceltype (PTHREAD_CANCEL_ASYNCHRONOUS, (__oldtypeptr));\
+ 	pthread_cleanup_push((__handler), (__arg));
+-#endif
+ #define	CLEANUP_RESET(__execute, __oldtype) \
+     pthread_cleanup_pop(__execute); \
+     (void) pthread_setcanceltype ((__oldtype), &(__oldtype));
++#endif
+ 
+ #define	SAME_THREAD(_a, _b)	pthread_equal(((pthread_t)_a), ((pthread_t)_b))
+ /*@-macromatchname@*/
+--- rpm-5.4.10/rpmio/ugid.c.bero	2012-12-31 18:50:22.187099905 +0100
++++ rpm-5.4.10/rpmio/ugid.c	2012-12-31 20:07:59.891479684 +0100
+@@ -6,6 +6,22 @@
+ #include "ugid.h"
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++/* Android groups are weird and incomplete... */
++int getgrnam_r(const char *name, struct group *grp, char *buf, size_t buflen, struct group **result) {
++	struct group *g = getgrnam(name);
++	memcpy(buf, g, sizeof(struct group));
++	*result = (struct group*)buf;
++}
++int getgrgid_r(gid_t gid, struct group *grp, char *buf, size_t buflen, struct group **result) {
++	struct group *g = getgrgid(gid);
++	memcpy(buf, g, sizeof(struct group));
++	*result = (struct group*)buf;
++}
++void endgrent() {
++}
++#endif
++
+ /* unameToUid(), uidTouname() and the group variants are really poorly
+    implemented. They really ought to use hash tables. I just made the
+    guess that most files would be owned by root or the same person/group
+--- rpm-5.4.10/lib/poptALL.c.bero	2012-12-31 20:51:25.264876403 +0100
++++ rpm-5.4.10/lib/poptALL.c	2012-12-31 20:51:32.668788013 +0100
+@@ -5,6 +5,7 @@
+ 
+ #include "system.h"
+ extern const char *__progname;
++const char *program_name = "rpm";
+ 
+ #if defined(RPM_VENDOR_WINDRIVER)
+ const char *__usrlibrpm = USRLIBRPM;
+--- rpm-5.4.10/lib/psm.c.bero	2012-12-31 20:52:22.669193559 +0100
++++ rpm-5.4.10/lib/psm.c	2012-12-31 20:52:41.629967617 +0100
+@@ -85,6 +85,11 @@ int _psm_threads = 0;
+ 
+ /*@access rpmluav @*/
+ 
++#ifdef __BIONIC__
++void endgrent() {
++}
++#endif
++
+ #ifdef __cplusplus
+ GENfree(HE_t)
+ GENfree(int *)
+--- rpm-5.4.10/lib/rpmds.c.bero	2012-12-31 20:51:45.532634778 +0100
++++ rpm-5.4.10/lib/rpmds.c	2012-12-31 20:52:07.837369530 +0100
+@@ -2761,7 +2761,7 @@ rpmdsGetconf(rpmds * dsp, const char *pa
+ 	    }
+ 	    /*@switchbreak@*/ break;
+ 	case CONFSTR:
+-#ifndef __CYGWIN__
++#if !defined(__CYGWIN__) && !defined(__BIONIC__)
+ 	    clen = confstr(c->call_name, (char *) NULL, 0);
+ 	    EVR = (char *) xmalloc(clen+1);
+ 	    *EVR = '\0';
+--- rpm-5.4.10/lib/rpmts.c.bero	2012-12-31 20:48:52.825692618 +0100
++++ rpm-5.4.10/lib/rpmts.c	2012-12-31 20:49:45.405066929 +0100
+@@ -1130,7 +1130,7 @@ int rpmtsInitDSI(const rpmts ts)
+ #elif defined(__APPLE__) && defined(__MACH__) && !defined(_SYS_STATVFS_H_)
+ 	dsi->f_fsid = 0; /* "Not meaningful in this implementation." */
+ 	dsi->f_namemax = pathconf(ts->filesystems[i], _PC_NAME_MAX);
+-#elif defined(__OpenBSD__)
++#elif defined(__OpenBSD__) || defined(__BIONIC__)
+ 	dsi->f_fsid = 0; /* sfb.f_fsid is a structure on OpenBSD */
+ 	dsi->f_namemax = pathconf(ts->filesystems[i], _PC_NAME_MAX);
+ #else
+@@ -1146,7 +1146,7 @@ int rpmtsInitDSI(const rpmts ts)
+ 
+ 	dsi->bneeded = 0;
+ 	dsi->ineeded = 0;
+-#ifdef STATFS_HAS_F_BAVAIL
++#if defined(STATFS_HAS_F_BAVAIL) && !defined(__BIONIC__)
+ 	dsi->f_bavail = (long long)(sfb.f_bavail ? sfb.f_bavail : 1);
+ 	if (sfb.f_ffree > 0 && sfb.f_files > 0 && sfb.f_favail > 0)
+ 	    dsi->f_favail = (long long)sfb.f_favail;
+--- rpm-5.4.10/misc/strtol.c.bero	2012-12-31 21:04:54.827231397 +0100
++++ rpm-5.4.10/misc/strtol.c	2012-12-31 21:05:16.229976281 +0100
+@@ -54,6 +54,9 @@ extern int errno;
+ 
+ /* If QUAD is defined, we are defining `strtoq' or `strtouq',
+    operating on `long long int's.  */
++#ifdef __BIONIC__
++#define QUAD uint64_t
++#endif
+ #ifdef QUAD
+ # if UNSIGNED
+ #  define strtoul strtouq
+--- rpm-5.4.10/rpmdb/rpmrepo.c.bero	2012-12-31 20:42:35.333177996 +0100
++++ rpm-5.4.10/rpmdb/rpmrepo.c	2012-12-31 20:47:26.869714746 +0100
+@@ -4,6 +4,10 @@
+ 
+ #include "system.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmrepo";
++#endif
++
+ #if defined(WITH_DBSQL)
+ #include <dbsql.h>
+ #elif defined(WITH_SQLITE)
+--- rpm-5.4.10/rpmio/librpmio.vers.bero	2012-12-31 20:40:37.165563441 +0100
++++ rpm-5.4.10/rpmio/librpmio.vers	2012-12-31 20:41:06.229218146 +0100
+@@ -1005,6 +1005,10 @@ LIBRPMIO_0
+     mongo_simple_int_command;
+     mongo_simple_str_command;
+     mongo_update;
++    xstrdup;
++    xrealloc;
++    xmalloc;
++    xcalloc;
+   local:
+     *;
+ };
+--- rpm-5.4.10/rpmio/rpmmalloc.c.bero	2012-12-31 20:37:43.762629325 +0100
++++ rpm-5.4.10/rpmio/rpmmalloc.c	2012-12-31 20:40:10.332883318 +0100
+@@ -285,7 +285,7 @@ rpmioItem rpmioPutPool(rpmioItem item)
+ }
+ /*@=internalglobs@*/
+ 
+-#if !(HAVE_MCHECK_H && defined(__GNUC__)) && !defined(__LCLINT__)
++#if defined(__BIONIC__) || (!(HAVE_MCHECK_H && defined(__GNUC__)) && !defined(__LCLINT__))
+ 
+ /*@out@*/ /*@only@*/ void * xmalloc (size_t size)
+ {
+--- rpm-5.4.10/rpmio/set.c.bero	2012-12-31 20:34:04.691236029 +0100
++++ rpm-5.4.10/rpmio/set.c	2012-12-31 20:34:48.684711261 +0100
+@@ -25,6 +25,11 @@
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++#define xstrdup strdup
++#define xrealloc realloc
++#endif
++
+ int _rpmset_debug = 0;
+ 
+ /*==============================================================*/
+--- rpm-5.4.10/rpmio/yarn.c.bero	2012-12-31 20:31:10.583310231 +0100
++++ rpm-5.4.10/rpmio/yarn.c	2012-12-31 20:32:23.389442061 +0100
+@@ -441,9 +441,9 @@ yarnThread yarnLaunchStack(void (*probe)
+     int ret;
+     yarnThread th;
+     struct capsule * capsule;
+-#if defined(WITH_PTHREADS)
++//#if defined(WITH_PTHREADS)
+     pthread_attr_t attr;
+-#endif
++//#endif
+ 
+     /* construct the requested call and argument for the yarnIgnition() routine
+        (allocated instead of automatic so that we're sure this will still be
+--- rpm-5.4.10/rpmqv.c.bero	2012-12-31 21:12:00.916158187 +0100
++++ rpm-5.4.10/rpmqv.c	2012-12-31 21:12:17.453961214 +0100
+@@ -56,6 +56,9 @@ extern const char *__progname;
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmqv";
++#endif
+ 
+ #ifdef __cplusplus
+ 
+--- rpm-5.4.10/tools/chroot.c.bero	2012-12-31 20:57:10.281766570 +0100
++++ rpm-5.4.10/tools/chroot.c	2012-12-31 20:57:14.772712988 +0100
+@@ -35,6 +35,10 @@
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "chroot";
++#endif
++
+ static char * user;		/* user to switch to before running program */
+ static char * group;		/* group to switch to ... */
+ static char * grouplist;	/* group list to switch to ... */
+--- rpm-5.4.10/tools/cp.c.bero	2012-12-31 20:57:21.812629164 +0100
++++ rpm-5.4.10/tools/cp.c	2012-12-31 21:02:07.470225900 +0100
+@@ -41,6 +41,10 @@
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "cp";
++#endif
++
+ #if !defined(MIN)	/* XXX OpenIndiana needs */
+ #define	MIN(a,b) (((a)<(b))?(a):(b))
+ #endif
+@@ -226,8 +230,13 @@ rpmctSetFile(rpmct ct, FD_t fd)
+ 
+     st->st_mode &= S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO;
+ 
++#ifdef __BIONIC__
++    ct->tv[0].tv_sec = st->st_atime; ct->tv[0].tv_usec = 0;
++    ct->tv[1].tv_sec = st->st_mtime; ct->tv[1].tv_usec = 0;
++#else
+     TIMESPEC_TO_TIMEVAL(&ct->tv[0], &st->st_atimespec);
+     TIMESPEC_TO_TIMEVAL(&ct->tv[1], &st->st_mtimespec);
++#endif
+     if (islink ? Lutimes(ct->npath, ct->tv) : Utimes(ct->npath, ct->tv)) {
+ 	rpmlog(RPMLOG_ERR, "%stimes: %s: %s\n", islink ? "lu" : "U", ct->npath, strerror(errno));
+ 	rval = RPMRC_FAIL;
+--- rpm-5.4.10/tools/rpmdigest.c.bero	2012-12-31 21:10:27.391270231 +0100
++++ rpm-5.4.10/tools/rpmdigest.c	2012-12-31 21:10:47.751027991 +0100
+@@ -8,6 +8,10 @@ extern const char * __progname;
+ #include <poptIO.h>
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmdigest";
++#endif
++
+ static int _rpmdc_debug = 0;
+ 
+ /* XXX older 0install manifest format. */
+--- rpm-5.4.10/tools/rpmfind.c.bero	2012-12-31 21:02:35.794887973 +0100
++++ rpm-5.4.10/tools/rpmfind.c	2012-12-31 21:06:27.207130632 +0100
+@@ -48,7 +48,11 @@ char copyright[] =
+ #endif
+ #include <sys/mount.h>
+ 
++#ifndef __BIONIC__
+ #include <langinfo.h>
++#else
++#define LINE_MAX 2048
++#endif
+ 
+ #include <rpmio.h>
+ #include <rpmdir.h>
+@@ -1108,7 +1112,7 @@ queryuser(char *argv[])
+ 	(void)fprintf(stderr, "\n");
+ 	(void)fflush(stderr);
+     }
+-#if defined(__APPLE__) || defined(__sun__)
++#if defined(__APPLE__) || defined(__sun__) || defined(__BIONIC__)
+     return ((resp[0] == 'Y' || resp[0] == 'y') ? 1 : 0);
+ #else
+     return (rpmatch(resp) == 1);
+@@ -1174,7 +1178,7 @@ find_parsenum(PLAN *plan, const char *op
+      * and endchar points to the beginning of the string we know we have
+      * a syntax error.
+      */
+-#if defined(__sun__)
++#if defined(__sun__) || defined(__BIONIC__)
+     value = strtoll(str, &endchar, 10);
+ #else
+     value = strtoq(str, &endchar, 10);
+@@ -1214,7 +1218,7 @@ find_parsetime(PLAN *plan, const char *o
+ 	break;
+     }
+ 
+-#if defined(__sun__)
++#if defined(__sun__) || defined(__BIONIC__)
+     value = strtoll(str, &unit, 10);
+ #else
+     value = strtoq(str, &unit, 10);
+@@ -1252,7 +1256,7 @@ find_parsetime(PLAN *plan, const char *o
+ 	str = unit + 1;
+ 	if (*str == '\0')	/* EOS */
+ 	    break;
+-#if defined(__sun__)
++#if defined(__sun__) || defined(__BIONIC__)
+ 	value = strtoll(str, &unit, 10);
+ #else
+ 	value = strtoq(str, &unit, 10);
+--- rpm-5.4.10/tools/rpmgrep.c.bero	2012-12-31 20:56:02.227577052 +0100
++++ rpm-5.4.10/tools/rpmgrep.c	2012-12-31 20:57:02.861854645 +0100
+@@ -46,6 +46,10 @@ POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmgrep";
++#endif
++
+ /*@access miRE @*/
+ 
+ typedef unsigned BOOL;
+--- rpm-5.4.10/tools/rpmmtree.c.bero	2012-12-31 21:07:20.557494003 +0100
++++ rpm-5.4.10/tools/rpmmtree.c	2012-12-31 21:09:51.374697294 +0100
+@@ -43,6 +43,10 @@ static const char copyright[] =
+ #include <signal.h>
+ #include <stdarg.h>
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmmtree";
++#endif
++
+ #if defined(__QNXNTO__)
+ #define	st_mtimespec	st_mtime
+ #endif
+@@ -1484,7 +1488,7 @@ set(char * t, NODE * ip)
+ 	    }
+ 	    /*@switchbreak@*/ break;
+ 	case MTREE_KEYS_TIME:
+-#if defined(TIMEVAL_TO_TIMESPEC)
++#if defined(TIMEVAL_TO_TIMESPEC) && !defined(__BIONIC__) /* Bionic doesn't have st_mtimespec */
+ 	    ip->sb.st_mtimespec.tv_sec = strtoul(val, &ep, 10);
+ 	    if (*ep != '.')
+ 		mtree_error("invalid time %s", val);
+@@ -1890,8 +1894,13 @@ compare_nodes(NODE *n1, NODE *n2, const
+ 	differs |= MTREE_KEYS_SLINK;
+ 
+ /*@-type@*/
++#ifndef __BIONIC__
+     if (FM(n1, n2, MTREE_KEYS_TIME, sb.st_mtimespec))
+ 	differs |= MTREE_KEYS_TIME;
++#else
++    if (FM(n1, n2, MTREE_KEYS_TIME, sb.st_mtime))
++	differs |= MTREE_KEYS_TIME;
++#endif
+ /*@=type@*/
+     if (FF(n1, n2, MTREE_KEYS_UID, sb.st_uid))
+ 	differs |= MTREE_KEYS_UID;
+@@ -2205,7 +2214,7 @@ typeerr:    LABEL;
+ 	struct timeval tv[2];
+ 
+ /*@-noeffectuncon -unrecog @*/
+-#if defined(TIMESPEC_TO_TIMEVAL)
++#if defined(TIMESPEC_TO_TIMEVAL) && !defined(__BIONIC__) /* Bionic doesn't have st_mtimespec */
+ 	TIMESPEC_TO_TIMEVAL(&tv[0], &s->sb.st_mtimespec);
+ 	TIMESPEC_TO_TIMEVAL(&tv[1], &st->st_mtimespec);
+ #else
+@@ -2585,7 +2594,7 @@ mtreeVisitF(rpmfts fts)
+ 	output(indent, &offset, "size=%llu", (unsigned long long)st->st_size);
+     if (KF_ISSET(keys, TIME)) {
+ 	struct timeval tv;
+-#if defined(TIMESPEC_TO_TIMEVAL)
++#if defined(TIMESPEC_TO_TIMEVAL) && !defined(__BIONIC__) /* Bionic doesn't have st_mtimespec */
+ 	TIMESPEC_TO_TIMEVAL(&tv, &st->st_mtimespec);
+ #else
+ 	tv.tv_sec = (long)st->st_mtime;
+--- rpm-5.4.10/tools/rpmrepo.c.bero	2012-12-31 21:10:54.425948961 +0100
++++ rpm-5.4.10/tools/rpmrepo.c	2012-12-31 21:11:11.693742739 +0100
+@@ -4,6 +4,10 @@
+ 
+ #include "system.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmrepo";
++#endif
++
+ #if defined(WITH_DBSQL)
+ #include <dbsql.h>
+ #elif defined(WITH_SQLITE)
+--- rpm-5.4.10/tools/rpmwget.c.bero	2012-12-31 21:10:00.356590761 +0100
++++ rpm-5.4.10/tools/rpmwget.c	2012-12-31 21:10:16.007405077 +0100
+@@ -10,6 +10,10 @@
+ 
+ #include "debug.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "rpmwget";
++#endif
++
+ #define _KFB(n) (1U << (n))
+ #define _WFB(n) (_KFB(n) | 0x40000000)
+ 
+--- rpm-5.4.10/tools/sqlite3.c.bero	2012-12-31 21:11:22.605613078 +0100
++++ rpm-5.4.10/tools/sqlite3.c	2012-12-31 21:11:38.166428228 +0100
+@@ -20,6 +20,10 @@
+ 
+ #include "system.h"
+ 
++#ifdef __BIONIC__
++const char *program_name = "sqlite3";
++#endif
++
+ #include <stdarg.h>
+ 
+ #define	_RPMSQL_INTERNAL

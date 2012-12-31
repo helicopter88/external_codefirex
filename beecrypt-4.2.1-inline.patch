@@ -1,0 +1,15 @@
+--- beecrypt-4.2.1/include/beecrypt/endianness.h.bero	2012-12-31 13:39:16.816391973 +0100
++++ beecrypt-4.2.1/include/beecrypt/endianness.h	2012-12-31 13:45:39.480815957 +0100
+@@ -22,6 +22,12 @@
+ 
+ #include "beecrypt/beecrypt.h"
+ 
++#if !defined(HAVE_INLINE) && (defined(__GNUC__) || defined(__CLANG__))
++/* HAVE_INLINE is defined only inside beecrypt's source - but not *
++ * necessarily for external applications #include-ing this header */
++#define HAVE_INLINE 1
++#endif
++
+ #if defined(__cplusplus) || HAVE_INLINE
+ 
+ static inline int16_t _swap16(int16_t n)

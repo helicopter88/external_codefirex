@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Wanted versions
-[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.5
+[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.8
 [ -z "$GCC" ] && GCC=lp:gcc-linaro
 [ -z "$GMP" ] && GMP=5.0.5
 [ -z "$MPFR" ] && MPFR=3.1.1
@@ -10,11 +10,13 @@
 [ -z "$NCURSES" ] && NCURSES=5.9
 [ -z "$VIM" ] && VIM=7.3
 [ -z "$ANDROID" ] && ANDROID=4.1.2
-# rpm support isn't working yet
+
+# Everything below is needed only for rpm support
 [ -z "$WITH_RPM" ] && WITH_RPM=false
 [ -z "$DB" ] && DB=5.3.15
 [ -z "$BEECRYPT" ] && BEECRYPT=4.2.1
 [ -z "$POPT" ] && POPT=1.16
+[ -z "$PCRE" ] && PCRE=8.31
 
 # Installation location
 [ -z "$DEST" ] && DEST=/tmp/android-native-toolchain
@@ -158,17 +160,25 @@ if $WITH_RPM; then
 		tar xf beecrypt-$BEECRYPT.tar.gz
 		cd beecrypt-$BEECRYPT
 		patch -p1 <"$DIR/beecrypt-4.2.1-compile.patch"
+		patch -p1 <"$DIR/beecrypt-4.2.1-inline.patch"
 		aclocal
 		libtoolize --force
 		automake -a
 		autoconf
 		# beecrypt's config.sub doesn't know about androideabi
-		cp -f /usr/share/automake-1.12/config.sub .
+		cp -f /usr/share/automake-1.13/config.sub . || cp -f /usr/share/automake-1.12/config.sub .
 		cd ..
+	fi
+	if ! [ -d pcre-$PCRE ]; then
+		wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-$PCRE.tar.bz2
+		tar xf pcre-$PCRE.tar.bz2
 	fi
 	if ! [ -d rpm-5.4.10 ]; then
 		svn co svn+ssh://svn.mandriva.com/svn/packages/cooker/rpm/current/SOURCES
 		tar xf SOURCES/rpm-5.4.10.tar.gz
+		cd rpm-5.4.10
+		patch -p1 <"$DIR/rpm-5.4.10-android.patch"
+		cd ..
 	fi
 	if ! [ -d android/external/zlib ]; then
 		cd android/external
@@ -567,10 +577,20 @@ if $WITH_RPM; then
 	make install DESTDIR=$DEST
 	cd ..
 
+	mkdir pcre
+	cd pcre
+	../../src/pcre-$PCRE/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
+	make $SMP
+	make install DESTDIR=$DEST
+	cd ..
+
 	mkdir rpm
 	cd rpm
-	ac_cv_va_copy=C99 ../../src/rpm-5.4.10/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
-	make $SMP
+	# --without-pthreads isn't nice... But rpm uses pthread_cancel
+	ac_cv_va_copy=C99 ../../src/rpm-5.4.10/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --disable-nls --enable-posixmutexes --without-python --without-perl --without-mozjs185 --with-glob --without-selinux --without-augeas --without-pthreads
+	# rpm defaults to bison -y -- but bison 2.7 generates a duplicate
+	# definition of yylval on getdate.y
+	make $SMP YACC="byacc"
 	make install DESTDIR=$DEST
 	cd ..
 fi
