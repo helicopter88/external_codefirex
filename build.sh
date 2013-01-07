@@ -47,7 +47,7 @@ if ! [ -d tc-wrapper ]; then
 	#	1. toolchain not being properly sysrooted
 	#	2. gcc not making a difference between CPPFLAGS for build and host machine
 	mkdir tc-wrapper
-	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"/tmp/arm-linux-androideabi\" -DDESTDIR=\"/tmp/android-native-toolchain\"
+	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"/tmp/arm-linux-androideabi\" -DDESTDIR=\"$DEST\"
 	for i in cpp g++ c++; do
 		ln -s arm-linux-androideabi-gcc tc-wrapper/arm-linux-androideabi-$i
 	done
@@ -286,7 +286,10 @@ make $SMP
 make install
 cd ..
 
-if ! $INTREE; then
+if $INTREE; then
+	mkdir -p $DEST/system/lib
+	cp $CRT/crt*.o $DEST/system/lib
+else
 	mkdir -p bionic
 	cd bionic
 	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
@@ -362,8 +365,7 @@ $SRC/mpfr/mpfr-$MPFR/configure \
 	--host=arm-linux-androideabi \
 	--with-sysroot=$DEST \
 	--with-gmp-include=$DEST/system/include \
-	--with-gmp-lib=$DEST/system/lib \
-	--disable-nls
+	--with-gmp-lib=$DEST/system/lib
 make $SMP
 make install DESTDIR=$DEST
 rm -f $DEST/system/lib/*.la # libtool sucks, *.la files are harmful

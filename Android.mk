@@ -5,7 +5,7 @@
 native-toolchain: $(PRODUCT_OUT)/system/bin/gcc
 
 $(PRODUCT_OUT)/system/bin/gcc: $(TARGET_CRTBEGIN_DYNAMIC_O) $(TARGET_CRTEND_O) $(TARGET_OUT_SHARED_LIBRARIES)/libm.so $(TARGET_OUT_SHARED_LIBRARIES)/libc.so $(TARGET_OUT_SHARED_LIBRARIES)/libdl.so $(TARGET_OUT_SHARED_LIBRARIES)/libstlport.so
-	./build.sh DEST=$(PRODUCT_OUT) HOST_OUT=$(HOST_OUT) TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) INTREE=true
+	DEST=$(realpath $(TOP))/$(PRODUCT_OUT) CRT=$(realpath $(shell dirname $(TOP)/$(TARGET_CRTBEGIN_DYNAMIC_O))) HOST_OUT=$(HOST_OUT) INTREE=true $(CURDIR)/native-toolchain/build.sh
 
 droidcore: native-toolchain
 
