@@ -24,6 +24,9 @@
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
+# Whether or not we're building inside an Android source tree
+[ "$INTREE" != "true" ] && INTREE=false
+
 # Set to true to keep Bionic. (This shouldn't be copied to the device
 # because it's already there -- but it can be useful to do a sysroot-like
 # install.)
@@ -96,58 +99,67 @@ if ! [ -d ncurses-$NCURSES ]; then
 	patch -p1 <"$DIR/ncurses-5.9-android.patch"
 	cd ..
 fi
-if ! [ -d android ]; then
-	mkdir -p android
-	cd android
-	git clone git://android.git.linaro.org/platform/bionic.git
-	cd bionic
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	git clone git://android.git.linaro.org/platform/build.git
-	cd build
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	mkdir -p device/linaro
-	cd device/linaro
-	git clone git://android.git.linaro.org/device/linaro/common.git
-	cd common
-	git checkout -b linaro-ics origin/linaro-ics
-	cd ..
-	git clone git://android.git.linaro.org/device/linaro/pandaboard.git
-	cd pandaboard
-	git checkout -b linaro-jb origin/linaro-jb
-	cd ..
-	cd ../..
-	mkdir frameworks
-	cd frameworks
-	git clone git://android.git.linaro.org/platform/frameworks/native.git
-	cd native
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	cd ..
-	mkdir -p hardware/ti
-	cd hardware/ti
-	git clone git://android.git.linaro.org/platform/hardware/ti/omap4xxx
-	cd omap4xxx
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	cd ../..
-	mkdir system
-	cd system
-	git clone git://android.git.linaro.org/platform/system/core.git
-	cd core
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	cd ..
-	mkdir external
-	cd external
-	git clone git://android.git.linaro.org/platform/external/stlport.git
-	cd stlport
-	git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
-	cd ..
-	cd ..
-	ln -sf build/core/root.mk Makefile
-	cd ..
+if $INTREE; then
+	BIONIC=../bionic
+	STLPORT=../external/stlport
+	ZLIB=../external/zlib
+else
+	BIONIC=src/android/bionic
+	STLPORT=src/android/external/stlport
+	ZLIB=src/android/external/zlib
+	if ! [ -d android ]; then
+		mkdir -p android
+		cd android
+		git clone git://android.git.linaro.org/platform/bionic.git
+		cd bionic
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		git clone git://android.git.linaro.org/platform/build.git
+		cd build
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		mkdir -p device/linaro
+		cd device/linaro
+		git clone git://android.git.linaro.org/device/linaro/common.git
+		cd common
+		git checkout -b linaro-ics origin/linaro-ics
+		cd ..
+		git clone git://android.git.linaro.org/device/linaro/pandaboard.git
+		cd pandaboard
+		git checkout -b linaro-jb origin/linaro-jb
+		cd ..
+		cd ../..
+		mkdir frameworks
+		cd frameworks
+		git clone git://android.git.linaro.org/platform/frameworks/native.git
+		cd native
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		cd ..
+		mkdir -p hardware/ti
+		cd hardware/ti
+		git clone git://android.git.linaro.org/platform/hardware/ti/omap4xxx
+		cd omap4xxx
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		cd ../..
+		mkdir system
+		cd system
+		git clone git://android.git.linaro.org/platform/system/core.git
+		cd core
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		cd ..
+		mkdir external
+		cd external
+		git clone git://android.git.linaro.org/platform/external/stlport.git
+		cd stlport
+		git checkout -b linaro_android_$ANDROID origin/linaro_android_$ANDROID
+		cd ..
+		cd ..
+		ln -sf build/core/root.mk Makefile
+		cd ..
+	fi
 fi
 if $WITH_RPM; then
 	if ! [ -d db-$DB ]; then
@@ -185,7 +197,7 @@ if $WITH_RPM; then
 		patch -p1 <"$DIR/rpm-5.4.10-android.patch"
 		cd ..
 	fi
-	if ! [ -d android/external/zlib ]; then
+	if ! $INTREE && ! [ -d android/external/zlib ]; then
 		cd android/external
 		git clone git://android.git.linaro.org/platform/external/zlib.git
 		cd zlib
@@ -204,7 +216,7 @@ if ! [ -d vim$VIMD ]; then
 fi
 cd ..
 
-rm -rf "$DEST"
+$INTREE || rm -rf "$DEST"
 # FIXME this is a pretty awful hack to make sure gcc can find
 # its headers even though it has been taught Android doesn't
 # have system headers (no proper sysroot)
@@ -218,13 +230,13 @@ rm -rf "$DEST"
 # files from libc/include
 mkdir -p "$DEST"/system/include
 for i in libc/include libc/arch-arm/include libc/kernel/common libc/kernel/arch-arm libm/include; do
-	cp -a src/android/bionic/$i/* "$DEST"/system/include
+	cp -a $BIONIC/$i/* "$DEST"/system/include
 done
 mkdir -p "$DEST/system/include/libstdc++"
-cp -a src/android/bionic/libstdc++/include "$DEST"/system/include/libstdc++/
+cp -a $BIONIC/libstdc++/include "$DEST"/system/include/libstdc++/
 # We'll need stlport headers too, as we're disabling libstdc++ when
 # building gcc
-cp -a src/android/external/stlport/stlport "$DEST"/system/include/
+cp -a $STLPORT/stlport "$DEST"/system/include/
 # Make them match the include directory structure we're building
 sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' "$DEST"/system/include/stlport/stl/config/_android.h
 # And don't insist on -DANDROID when gcc already defines __ANDROID__ for us
@@ -274,26 +286,30 @@ make $SMP
 make install
 cd ..
 
-mkdir -p bionic
-cd bionic
-ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-mkdir -p "$DEST/system/lib"
-# Android's pthread bits are built into bionic libc -- but lots of traditional
-# Linux configure scripts just hardcode that there's a -lpthread...
-# Let's accomodate them
-touch dummy.c
-arm-linux-androideabi-gcc -O2 -o dummy.o -c dummy.c
-arm-linux-androideabi-ar cru $DEST/system/lib/libpthread.a dummy.o
-rm -f dummy.[co]
-if $WITH_RPM; then
-	ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-	cp -L ../../src/android/external/zlib/*.h $DEST/system/include/
+if ! $INTREE; then
+	mkdir -p bionic
+	cd bionic
+	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	mkdir -p "$DEST/system/lib"
+	if $WITH_RPM; then
+		ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+		cp -L ../../src/android/external/zlib/*.h $DEST/system/include/
+	fi
+	cp ../../src/android/out/target/product/pandaboard/obj/lib/* $DEST/system/lib/
+	cd ..
 fi
-cp ../../src/android/out/target/product/pandaboard/obj/lib/* $DEST/system/lib/
-cd ..
+if ! [ -d $DEST/system/lib/libpthread.a ]; then
+	# Android's pthread bits are built into bionic libc -- but lots of traditional
+	# Linux configure scripts just hardcode that there's a -lpthread...
+	# Let's accomodate them
+	touch dummy.c
+	arm-linux-androideabi-gcc -O2 -o dummy.o -c dummy.c
+	arm-linux-androideabi-ar cru $DEST/system/lib/libpthread.a dummy.o
+	rm -f dummy.[co]
+fi
 
 export CFLAGS="$TARGET_CFLAGS"
 export CXXFLAGS="$TARGET_CXXFLAGS"
@@ -415,20 +431,11 @@ for i in "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include/*.h; do
 	[ -e "$DEST"/system/include/"`basename $i`" ] || mv $i "$DEST"/system/include/
 done
 
-# Get rid of libstdc++ - Android uses stlport instead
-#rm -rf \
-#	"$DEST"/system/include/c++ \
-#	"$DEST"/system/lib/libstdc++*
-
 # For compatibility with make defaults
 ln -s gcc "$DEST"/system/bin/cc
 
 # Libtool sucks
 rm -f "$DEST"/system/lib/*.la
-
-# TODO Actually build bionic instead of cheating by pulling those
-# from the prebuilt toolchain
-#cp -a "$TC"/arm-linux-androideabi/lib/crt*.o "$DEST"/system/lib/
 
 rm -rf make
 mkdir -p make
@@ -606,7 +613,7 @@ rm -rf \
 	"$DEST"/system/share/info \
 	"$DEST"/system/share/man
 
-if ! $KEEP_BIONIC; then
+if ! $KEEP_BIONIC && ! $INTREE; then
 	# Get rid of Bionic and stlport -- they're already included in Android
 	rm -rf \
 		"$DEST"/system/lib/libc.so \
@@ -618,12 +625,14 @@ if ! $KEEP_BIONIC; then
 		"$DEST"/system/lib/libdl.so
 fi
 
-# strip everything so we can fit into the limited
-# /system space on GNexus
-# set +e because the strip command will fail, given it will also get
-# to "strip" non-binaries.
-set +e
-find "$DEST" |xargs /tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip --strip-unneeded
+if ! $INTREE; then
+	# strip everything so we can fit into the limited
+	# /system space on GNexus
+	# set +e because the strip command will fail, given it will also get
+	# to "strip" non-binaries.
+	set +e
+	find "$DEST" |xargs /tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip --strip-unneeded
+fi
 echo
 echo Toolchain build successful.
 echo The native toolchain can be found in $DEST.
