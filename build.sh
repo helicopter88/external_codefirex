@@ -248,6 +248,7 @@ cd build
 
 # First of all, build a cross-toolchain for the current host (properly sysrooted)
 export PATH="$DIR/tc-wrapper:/tmp/arm-linux-androideabi/bin:$PATH"
+rm -rf binutils-host
 mkdir -p binutils-host
 cd binutils-host
 $SRC/binutils/configure \
@@ -261,6 +262,61 @@ $SRC/binutils/configure \
 make $SMP
 make install
 cd ..
+
+rm -rf gmp-host
+mkdir -p gmp-host
+cd gmp-host
+$SRC/gmp/gmp-$GMP/configure \
+	--prefix=/tmp/arm-linux-androideabi \
+	--disable-nls \
+	--disable-static
+make $SMP
+make install
+rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+cd ..
+
+rm -rf mpfr-host
+mkdir -p mpfr-host
+cd mpfr-host
+$SRC/mpfr/mpfr-$MPFR/configure \
+	--prefix=/tmp/arm-linux-androideabi \
+	--disable-static \
+	--with-sysroot=$DEST \
+	--with-gmp-include=/tmp/arm-linux-androideabi/include \
+	--with-gmp-lib=/tmp/arm-linux-androideabi/lib
+make $SMP
+make install
+rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+cd ..
+
+rm -rf mpc-host
+mkdir -p mpc-host
+cd mpc-host
+pushd $SRC/mpc/mpc-$MPC
+# Got to rebuild the auto* bits - the auto* versions
+# they were built with are too old to recognize
+# "androideabi"
+libtoolize --force
+cp -f /usr/share/libtool/config/config.* .
+aclocal -I m4
+automake -a
+autoconf
+popd
+# libtool rather sucks
+rm -f /tmp/arm-linux-androideabi/lib/*.la
+$SRC/mpc/mpc-$MPC/configure \
+	--prefix=/tmp/arm-linux-androideabi \
+	--disable-static \
+	--with-gmp-include=/tmp/arm-linux-androideabi/include \
+	--with-gmp-lib=/tmp/arm-linux-androideabi/lib \
+	--with-mpfr-include=/tmp/arm-linux-androideabi/include \
+	--with-mpfr-lib=/tmp/arm-linux-androideabi/lib
+make $SMP
+make install
+rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+cd ..
+
+# TODO build CLooG and friends for graphite
 
 mkdir -p gcc-host-bootstrap
 cd gcc-host-bootstrap
@@ -281,6 +337,9 @@ $SRC/gcc/configure \
 	--disable-sjlj-exceptions \
 	--disable-libgomp \
 	--with-sysroot=$DEST \
+	--with-gmp=/tmp/arm-linux-androideabi \
+	--with-mpfr=/tmp/arm-linux-androideabi \
+	--with-mpc=/tmp/arm-linux-androideabi \
 	--with-native-system-header-dir=/system/include
 make $SMP
 make install
