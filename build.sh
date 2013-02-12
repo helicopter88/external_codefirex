@@ -248,6 +248,7 @@ cd build
 
 # First of all, build a cross-toolchain for the current host (properly sysrooted)
 export PATH="$DIR/tc-wrapper:/tmp/arm-linux-androideabi/bin:$PATH"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/tmp/arm-linux-androideabi/lib64:/tmp/arm-linux-androideabi/lib"
 rm -rf binutils-host
 mkdir -p binutils-host
 cd binutils-host
