@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Wanted versions
-[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.8
+[ -z "$BINUTILS" ] && BINUTILS=2.23.51.0.9
 [ -z "$GCC" ] && GCC=lp:gcc-linaro
-[ -z "$GMP" ] && GMP=5.0.5
+[ -z "$GMP" ] && GMP=5.1.1
 [ -z "$MPFR" ] && MPFR=3.1.1
-[ -z "$MPC" ] && MPC=1.0
+[ -z "$MPC" ] && MPC=1.0.1
 [ -z "$MAKE" ] && MAKE=3.82
 [ -z "$NCURSES" ] && NCURSES=5.9
 [ -z "$VIM" ] && VIM=7.3
@@ -62,21 +62,28 @@ if ! [ -d binutils ]; then
 	cd ..
 fi
 if ! [ -d gmp ]; then
-	git clone git://android.git.linaro.org/toolchain/gmp.git
+	git clone git://android.git.linaro.org/toolchain/gmp-current.git gmp
 	cd gmp
-	git checkout -b linaro-master origin/linaro-master
+	git checkout -b linaro-$GMP origin/linaro-$GMP
+	aclocal
+	automake -a
+	autoconf
 	cd ..
 fi
 if ! [ -d mpfr ]; then
 	git clone git://android.git.linaro.org/toolchain/mpfr.git
 	cd mpfr
 	git checkout -b linaro-master origin/linaro-master
-	cd ..
+	cd mpfr-$MPFR
+	aclocal -I m4
+	automake -a
+	autoconf
+	cd ../..
 fi
 if ! [ -d mpc ]; then
-	git clone git://android.git.linaro.org/toolchain/mpc.git
+	git clone git://android.git.linaro.org/toolchain/mpc-current.git mpc
 	cd mpc
-	git checkout -b linaro-master origin/linaro-master
+	git checkout -b linaro-$MPC origin/linaro-$MPC
 	cd ..
 fi
 if ! [ -d gcc ]; then
@@ -267,7 +274,7 @@ cd ..
 rm -rf gmp-host
 mkdir -p gmp-host
 cd gmp-host
-$SRC/gmp/gmp-$GMP/configure \
+$SRC/gmp/configure \
 	--prefix=/tmp/arm-linux-androideabi \
 	--disable-nls \
 	--disable-static
@@ -293,7 +300,7 @@ cd ..
 rm -rf mpc-host
 mkdir -p mpc-host
 cd mpc-host
-pushd $SRC/mpc/mpc-$MPC
+pushd $SRC/mpc
 # Got to rebuild the auto* bits - the auto* versions
 # they were built with are too old to recognize
 # "androideabi"
@@ -305,7 +312,7 @@ autoconf
 popd
 # libtool rather sucks
 rm -f /tmp/arm-linux-androideabi/lib/*.la
-$SRC/mpc/mpc-$MPC/configure \
+$SRC/mpc/configure \
 	--prefix=/tmp/arm-linux-androideabi \
 	--disable-static \
 	--with-gmp-include=/tmp/arm-linux-androideabi/include \
@@ -404,7 +411,7 @@ cd ..
 rm -rf gmp
 mkdir -p gmp
 cd gmp
-$SRC/gmp/gmp-$GMP/configure \
+$SRC/gmp/configure \
 	--prefix=/system \
 	--disable-nls \
 	--disable-static \
@@ -434,7 +441,7 @@ cd ..
 rm -rf mpc
 mkdir -p mpc
 cd mpc
-pushd $SRC/mpc/mpc-$MPC
+pushd $SRC/mpc
 # Got to rebuild the auto* bits - the auto* versions
 # they were built with are too old to recognize
 # "androideabi"
@@ -446,7 +453,7 @@ autoconf
 popd
 # libtool rather sucks
 rm -f $DEST/system/lib/*.la
-$SRC/mpc/mpc-$MPC/configure \
+$SRC/mpc/configure \
 	--prefix=/system \
 	--disable-static \
 	--target=arm-linux-androideabi \
