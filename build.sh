@@ -110,6 +110,11 @@ if $INTREE; then
 	BIONIC=../bionic
 	STLPORT=../external/stlport
 	ZLIB=../external/zlib
+	cd mpfr/mpfr-$MPFR
+	aclocal -I m4
+	automake -a
+	autoconf
+	cd ../..
 else
 	BIONIC=src/android/bionic
 	STLPORT=src/android/external/stlport
