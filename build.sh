@@ -506,7 +506,7 @@ for i in "$DEST"/system/lib/gcc/arm-linux-androideabi/*/include/*.h; do
 done
 
 # For compatibility with make defaults
-ln -s gcc "$DEST"/system/bin/cc
+ln -sf gcc "$DEST"/system/bin/cc
 
 # Libtool sucks
 rm -f "$DEST"/system/lib/*.la
@@ -606,7 +606,7 @@ vim_cv_memmove_handles_overlap=yes \
 		--disable-selinux
 make $SMP STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
 make install DESTDIR=$DEST STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
-ln -s vim "$DEST"/system/bin/vi
+ln -sf vim "$DEST"/system/bin/vi
 cd ..
 
 # save space (from vim)
