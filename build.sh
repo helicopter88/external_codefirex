@@ -602,7 +602,8 @@ vim_cv_memmove_handles_overlap=yes \
 	./configure \
 		--prefix=/system \
 		--target=arm-linux-androideabi \
-		--host=arm-linux-androideabi
+		--host=arm-linux-androideabi \
+		--disable-selinux
 make $SMP STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
 make install DESTDIR=$DEST STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
 ln -s vim "$DEST"/system/bin/vi
