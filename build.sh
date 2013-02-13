@@ -305,16 +305,6 @@ cd ..
 rm -rf mpc-host
 mkdir -p mpc-host
 cd mpc-host
-pushd $SRC/mpc
-# Got to rebuild the auto* bits - the auto* versions
-# they were built with are too old to recognize
-# "androideabi"
-libtoolize --force
-cp -f /usr/share/libtool/config/config.* .
-aclocal -I m4
-automake -a
-autoconf
-popd
 # libtool rather sucks
 rm -f /tmp/arm-linux-androideabi/lib/*.la
 $SRC/mpc/configure \
@@ -446,16 +436,6 @@ cd ..
 rm -rf mpc
 mkdir -p mpc
 cd mpc
-pushd $SRC/mpc
-# Got to rebuild the auto* bits - the auto* versions
-# they were built with are too old to recognize
-# "androideabi"
-libtoolize --force
-cp -f /usr/share/libtool/config/config.* .
-aclocal -I m4
-automake -a
-autoconf
-popd
 # libtool rather sucks
 rm -f $DEST/system/lib/*.la
 $SRC/mpc/configure \
