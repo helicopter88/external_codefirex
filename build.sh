@@ -91,6 +91,7 @@ if ! [ -d gcc ]; then
 	patch -p0 <"$DIR/gcc-4.7-android-workarounds.patch"
 	patch -p0 <"$DIR/gcc-4.7-no-unneeded-multilib.patch"
 	patch -p0 <"$DIR/gcc-4.7-stlport.patch"
+	patch -p0 <"$DIR/gcc-4.7.3-texinfo-5.0.patch"
 fi
 if ! [ -d make-$MAKE ]; then
 	wget ftp://ftp.gnu.org/gnu/make/make-$MAKE.tar.bz2
