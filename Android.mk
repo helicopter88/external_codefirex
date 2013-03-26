@@ -1,3 +1,4 @@
+ifneq ($(BUILD_TINY_ANDROID),true)
 # Wrapper Makefile for building the native toolchain as part of an OS build
 # This (obviously) lacks proper dependency tracking. If you need to rebuild,
 # rm -f $(PRODUCT_OUT)/system/bin/gcc.
@@ -20,3 +21,4 @@ $(INSTALLED_SYSTEMIMAGE): $(GCC_FILE_NAME)
 FULL_SYSTEMIMAGE_DEPS += $(GCC_FILE_NAME)
 
 .PHONY: native-toolchain
+endif
