@@ -19,7 +19,15 @@
 [ -z "$PCRE" ] && PCRE=8.31
 
 # Installation location
-[ -z "$DEST" ] && DEST=/tmp/android-native-toolchain
+if [ -z "$DEST" ]; then
+	if which mktemp &>/dev/null; then
+		DEST="`mktemp /tmp/android-native-toolchain.XXXXXX`"
+	elif which id &>/dev/null; then
+		DEST="/tmp/android-native-toolchain.`id -u`.$$"
+	else
+		DEST="/tmp/android-native-toolchain.$$"
+	fi
+fi
 
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
@@ -272,7 +280,7 @@ $SRC/binutils/configure \
 	--enable-shared \
 	--disable-static \
 	--disable-nls \
-	--with-sysroot=$DEST
+	--with-sysroot="$DEST"
 make $SMP
 make install
 cd ..
@@ -295,7 +303,7 @@ cd mpfr-host
 $SRC/mpfr/mpfr-$MPFR/configure \
 	--prefix=/tmp/arm-linux-androideabi \
 	--disable-static \
-	--with-sysroot=$DEST \
+	--with-sysroot="$DEST" \
 	--with-gmp-include=/tmp/arm-linux-androideabi/include \
 	--with-gmp-lib=/tmp/arm-linux-androideabi/lib
 make $SMP
@@ -340,7 +348,7 @@ $SRC/gcc/configure \
 	--disable-libquadmath \
 	--disable-sjlj-exceptions \
 	--disable-libgomp \
-	--with-sysroot=$DEST \
+	--with-sysroot="$DEST" \
 	--with-gmp=/tmp/arm-linux-androideabi \
 	--with-mpfr=/tmp/arm-linux-androideabi \
 	--with-mpc=/tmp/arm-linux-androideabi \
@@ -350,8 +358,8 @@ make install
 cd ..
 
 if $INTREE; then
-	mkdir -p $DEST/system/lib
-	cp $CRT/crt*.o $DEST/system/lib
+	mkdir -p "$DEST"/system/lib
+	cp $CRT/crt*.o "$DEST"/system/lib
 else
 	mkdir -p bionic
 	cd bionic
@@ -362,18 +370,18 @@ else
 	mkdir -p "$DEST/system/lib"
 	if $WITH_RPM; then
 		ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-		cp -L ../../src/android/external/zlib/*.h $DEST/system/include/
+		cp -L ../../src/android/external/zlib/*.h "$DEST"/system/include/
 	fi
-	cp ../../src/android/out/target/product/pandaboard/obj/lib/* $DEST/system/lib/
+	cp ../../src/android/out/target/product/pandaboard/obj/lib/* "$DEST"/system/lib/
 	cd ..
 fi
-if ! [ -d $DEST/system/lib/libpthread.a ]; then
+if ! [ -d "$DEST"/system/lib/libpthread.a ]; then
 	# Android's pthread bits are built into bionic libc -- but lots of traditional
 	# Linux configure scripts just hardcode that there's a -lpthread...
 	# Let's accomodate them
 	touch dummy.c
 	arm-linux-androideabi-gcc -O2 -o dummy.o -c dummy.c
-	arm-linux-androideabi-ar cru $DEST/system/lib/libpthread.a dummy.o
+	arm-linux-androideabi-ar cru "$DEST"/system/lib/libpthread.a dummy.o
 	rm -f dummy.[co]
 fi
 
@@ -400,8 +408,8 @@ $SRC/binutils/configure \
 	--enable-gold=default \
 	--disable-nls
 make $SMP
-make install DESTDIR=$DEST
-rm -f $DEST/system/lib/*.la # libtool sucks, *.la files are harmful
+make install DESTDIR="$DEST"
+rm -f "$DEST"/system/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 rm -rf gmp
@@ -414,8 +422,8 @@ $SRC/gmp/configure \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi
 make $SMP
-make install DESTDIR=$DEST
-rm -f $DEST/system/lib/*.la # libtool sucks, *.la files are harmful
+make install DESTDIR="$DEST"
+rm -f "$DEST"/system/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 rm -rf mpfr
@@ -426,27 +434,27 @@ $SRC/mpfr/mpfr-$MPFR/configure \
 	--disable-static \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi \
-	--with-sysroot=$DEST \
-	--with-gmp-include=$DEST/system/include \
-	--with-gmp-lib=$DEST/system/lib
+	--with-sysroot="$DEST" \
+	--with-gmp-include="$DEST"/system/include \
+	--with-gmp-lib="$DEST"/system/lib
 make $SMP
-make install DESTDIR=$DEST
-rm -f $DEST/system/lib/*.la # libtool sucks, *.la files are harmful
+make install DESTDIR="$DEST"
+rm -f "$DEST"/system/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 rm -rf mpc
 mkdir -p mpc
 cd mpc
 # libtool rather sucks
-rm -f $DEST/system/lib/*.la
+rm -f "$DEST"/system/lib/*.la
 $SRC/mpc/configure \
 	--prefix=/system \
 	--disable-static \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi
 make $SMP
-make install DESTDIR=$DEST
-rm -f $DEST/system/lib/*.la # libtool sucks, *.la files are harmful
+make install DESTDIR="$DEST"
+rm -f "$DEST"/system/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 # TODO build CLooG and friends for graphite
@@ -472,7 +480,7 @@ $SRC/gcc/configure \
 	--disable-libquadmath \
 	--disable-sjlj-exceptions
 make $SMP
-make install DESTDIR=$DEST
+make install DESTDIR="$DEST"
 cd ..
 
 # Remove superfluous bits
@@ -500,7 +508,7 @@ $SRC/make-$MAKE/configure \
 	--target=arm-linux-androideabi \
 	--host=arm-linux-androideabi
 make $SMP
-make install DESTDIR=$DEST
+make install DESTDIR="$DEST"
 cd ..
 
 rm -rf ncurses
@@ -517,7 +525,7 @@ $SRC/ncurses-$NCURSES/configure \
 	--without-manpages \
 	--with-shared
 make $SMP
-make install DESTDIR=$DEST
+make install DESTDIR="$DEST"
 
 # Get rid of components we don't need, we just need what we need to run vim
 rm -rf \
@@ -586,7 +594,7 @@ vim_cv_memmove_handles_overlap=yes \
 		--host=arm-linux-androideabi \
 		--disable-selinux
 make $SMP STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
-make install DESTDIR=$DEST STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
+make install DESTDIR="$DEST" STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
 ln -sf vim "$DEST"/system/bin/vi
 cd ..
 
@@ -629,27 +637,27 @@ if $WITH_RPM; then
 	cd db
 	../../src/db-$DB/dist/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --enable-shared --enable-posixmutexes --with-mutex=ARM/gcc-assembly
 	make $SMP
-	make install DESTDIR=$DEST
+	make install DESTDIR="$DEST"
 	cd ..
 
 	mkdir beecrypt
 	cd beecrypt
 	../../src/beecrypt-$BEECRYPT/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi --without-cplusplus --without-java --without-python --with-gnu-ld
-	make install DESTDIR=$DEST
+	make install DESTDIR="$DEST"
 	cd ..
 
 	mkdir popt
 	cd popt
 	../../src/popt-$POPT/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
 	make $SMP
-	make install DESTDIR=$DEST
+	make install DESTDIR="$DEST"
 	cd ..
 
 	mkdir pcre
 	cd pcre
 	../../src/pcre-$PCRE/configure --prefix=/system --host=arm-linux-androideabi --target=arm-linux-androideabi
 	make $SMP
-	make install DESTDIR=$DEST
+	make install DESTDIR="$DEST"
 	cd ..
 
 	mkdir rpm
@@ -659,7 +667,7 @@ if $WITH_RPM; then
 	# rpm defaults to bison -y -- but bison 2.7 generates a duplicate
 	# definition of yylval on getdate.y
 	make $SMP YACC="byacc"
-	make install DESTDIR=$DEST
+	make install DESTDIR="$DEST"
 	cd ..
 fi
 
