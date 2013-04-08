@@ -28,6 +28,16 @@ if [ -z "$DEST" ]; then
 		DEST="/tmp/android-native-toolchain.$$"
 	fi
 fi
+if [ -z "$HOSTDEST" ]; then
+	if which mktemp &>/dev/null; then
+		HOSTDEST="`mktemp /tmp/android-host-toolchain.XXXXXX`"
+	elif which id &>/dev/null; then
+		HOSTDEST="/tmp/android-host-toolchain.`id -u`.$$"
+	else
+		HOSTDEST="/tmp/android-host-toolchain.$$"
+	fi
+fi
+rm -rf "$HOSTDEST"
 
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
@@ -55,7 +65,7 @@ if ! [ -d tc-wrapper ]; then
 	#	1. toolchain not being properly sysrooted
 	#	2. gcc not making a difference between CPPFLAGS for build and host machine
 	mkdir tc-wrapper
-	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"/tmp/arm-linux-androideabi\" -DDESTDIR=\"$DEST\"
+	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
 	for i in cpp g++ c++; do
 		ln -s arm-linux-androideabi-gcc tc-wrapper/arm-linux-androideabi-$i
 	done
@@ -268,13 +278,13 @@ mkdir build
 cd build
 
 # First of all, build a cross-toolchain for the current host (properly sysrooted)
-export PATH="$DIR/tc-wrapper:/tmp/arm-linux-androideabi/bin:$PATH"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/tmp/arm-linux-androideabi/lib64:/tmp/arm-linux-androideabi/lib"
+export PATH="$DIR/tc-wrapper:$HOSTDEST/bin:$PATH"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOSTDEST/lib64:$HOSTDEST/lib"
 rm -rf binutils-host
 mkdir -p binutils-host
 cd binutils-host
 $SRC/binutils/configure \
-	--prefix=/tmp/arm-linux-androideabi \
+	--prefix="$HOSTDEST" \
 	--target=arm-linux-androideabi \
 	--enable-gold=default \
 	--enable-shared \
@@ -289,43 +299,43 @@ rm -rf gmp-host
 mkdir -p gmp-host
 cd gmp-host
 $SRC/gmp/configure \
-	--prefix=/tmp/arm-linux-androideabi \
+	--prefix="$HOSTDEST" \
 	--disable-nls \
 	--disable-static
 make $SMP
 make install
-rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 rm -rf mpfr-host
 mkdir -p mpfr-host
 cd mpfr-host
 $SRC/mpfr/mpfr-$MPFR/configure \
-	--prefix=/tmp/arm-linux-androideabi \
+	--prefix="$HOSTDEST" \
 	--disable-static \
 	--with-sysroot="$DEST" \
-	--with-gmp-include=/tmp/arm-linux-androideabi/include \
-	--with-gmp-lib=/tmp/arm-linux-androideabi/lib
+	--with-gmp-include="$HOSTDEST"/include \
+	--with-gmp-lib="$HOSTDEST"/lib
 make $SMP
 make install
-rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 rm -rf mpc-host
 mkdir -p mpc-host
 cd mpc-host
 # libtool rather sucks
-rm -f /tmp/arm-linux-androideabi/lib/*.la
+rm -f "$HOSTDEST"/lib/*.la
 $SRC/mpc/configure \
-	--prefix=/tmp/arm-linux-androideabi \
+	--prefix="$HOSTDEST" \
 	--disable-static \
-	--with-gmp-include=/tmp/arm-linux-androideabi/include \
-	--with-gmp-lib=/tmp/arm-linux-androideabi/lib \
-	--with-mpfr-include=/tmp/arm-linux-androideabi/include \
-	--with-mpfr-lib=/tmp/arm-linux-androideabi/lib
+	--with-gmp-include="$HOSTDEST"/include \
+	--with-gmp-lib="$HOSTDEST"/lib \
+	--with-mpfr-include="$HOSTDEST"/include \
+	--with-mpfr-lib="$HOSTDEST"/lib
 make $SMP
 make install
-rm -f /tmp/arm-linux-androideabi/lib/*.la # libtool sucks, *.la files are harmful
+rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
 cd ..
 
 # TODO build CLooG and friends for graphite
@@ -333,7 +343,7 @@ cd ..
 mkdir -p gcc-host-bootstrap
 cd gcc-host-bootstrap
 $SRC/gcc/configure \
-	--prefix=/tmp/arm-linux-androideabi \
+	--prefix="$HOSTDEST" \
 	--target=arm-linux-androideabi \
 	--enable-languages=c,c++ \
 	--with-gnu-as \
@@ -349,9 +359,9 @@ $SRC/gcc/configure \
 	--disable-sjlj-exceptions \
 	--disable-libgomp \
 	--with-sysroot="$DEST" \
-	--with-gmp=/tmp/arm-linux-androideabi \
-	--with-mpfr=/tmp/arm-linux-androideabi \
-	--with-mpc=/tmp/arm-linux-androideabi \
+	--with-gmp="$HOSTDEST" \
+	--with-mpfr="$HOSTDEST" \
+	--with-mpc="$HOSTDEST" \
 	--with-native-system-header-dir=/system/include
 make $SMP
 make install
@@ -363,13 +373,13 @@ if $INTREE; then
 else
 	mkdir -p bionic
 	cd bionic
-	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-	ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
-	ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX="$HOSTDEST"/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX="$HOSTDEST"/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=bionic/Android.mk make -C ../../src/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o TARGET_TOOLS_PREFIX="$HOSTDEST"/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+	ONE_SHOT_MAKEFILE=external/stlport/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX="$HOSTDEST"/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
 	mkdir -p "$DEST/system/lib"
 	if $WITH_RPM; then
-		ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
+		ONE_SHOT_MAKEFILE=external/zlib/Android.mk make -C ../../src/android all_modules TARGET_TOOLS_PREFIX="$HOSTDEST"/bin/arm-linux-androideabi- TARGET_PRODUCT=pandaboard
 		cp -L ../../src/android/external/zlib/*.h "$DEST"/system/include/
 	fi
 	cp ../../src/android/out/target/product/pandaboard/obj/lib/* "$DEST"/system/lib/
@@ -593,8 +603,8 @@ vim_cv_memmove_handles_overlap=yes \
 		--target=arm-linux-androideabi \
 		--host=arm-linux-androideabi \
 		--disable-selinux
-make $SMP STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
-make install DESTDIR="$DEST" STRIP=/tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip
+make $SMP STRIP="$HOSTDEST"/bin/arm-linux-androideabi-strip
+make install DESTDIR="$DEST" STRIP="$HOSTDEST"/bin/arm-linux-androideabi-strip
 ln -sf vim "$DEST"/system/bin/vi
 cd ..
 
@@ -695,8 +705,9 @@ if ! $INTREE; then
 	# set +e because the strip command will fail, given it will also get
 	# to "strip" non-binaries.
 	set +e
-	find "$DEST" |xargs /tmp/arm-linux-androideabi/bin/arm-linux-androideabi-strip --strip-unneeded
+	find "$DEST" |xargs "$HOSTDEST"/bin/arm-linux-androideabi-strip --strip-unneeded
 fi
+[ "$DEST" != "$HOSTDEST" ] && rm -rf "$HOSTDEST"
 echo
 echo Toolchain build successful.
 echo The native toolchain can be found in $DEST.
