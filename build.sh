@@ -349,6 +349,7 @@ $SRC/gcc/configure \
 	--with-gnu-ar \
 	--with-gnu-ld \
 	--disable-shared \
+	--disable-libatomic \
 	--disable-libssp \
 	--disable-libmudflap \
 	--disable-libstdc__-v3 \
@@ -481,6 +482,7 @@ $SRC/gcc/configure \
 	--with-gnu-ar \
 	--with-gnu-ld \
 	--disable-shared \
+	--disable-libatomic \
 	--disable-libssp \
 	--disable-libmudflap \
 	--disable-libstdc__-v3 \
