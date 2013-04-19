@@ -66,7 +66,7 @@ rm -rf tc-wrapper
 #	1. toolchain not being properly sysrooted
 #	2. gcc not making a difference between CPPFLAGS for build and host machine
 mkdir tc-wrapper
-gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.7.3\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
+gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.8.1\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
 for i in cpp g++ c++; do
 	ln -s arm-linux-androideabi-gcc tc-wrapper/arm-linux-androideabi-$i
 done
