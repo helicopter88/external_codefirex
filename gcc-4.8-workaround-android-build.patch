@@ -1,0 +1,44 @@
+This is a workaround for gcc 4.8 not compiling (HAVE_DECL_* being
+set incorrectly) with the prehistoric host toolchain installed in
+android-build.linaro.org.
+
+This patch is not necessary for modern systems and should not be
+upstreamed.
+
+--- gcc/gcc/system.h.bero	2013-04-19 18:37:29.764527002 +0200
++++ gcc/gcc/system.h	2013-04-19 18:38:30.364769395 +0200
+@@ -440,11 +440,11 @@ extern int getpagesize (void);
+ extern char *getwd (char *);
+ #endif
+ 
+-#if defined (HAVE_DECL_SBRK) && !HAVE_DECL_SBRK
++#if 0 && defined (HAVE_DECL_SBRK) && !HAVE_DECL_SBRK
+ extern void *sbrk (int);
+ #endif
+ 
+-#if defined (HAVE_DECL_STRSTR) && !HAVE_DECL_STRSTR
++#if 0 && defined (HAVE_DECL_STRSTR) && !HAVE_DECL_STRSTR
+ extern char *strstr (const char *, const char *);
+ #endif
+ 
+@@ -494,7 +494,7 @@ extern "C" {
+ 
+ /* If the system doesn't provide strsignal, we get it defined in
+    libiberty but no declaration is supplied.  */
+-#if !defined (HAVE_STRSIGNAL) \
+-    || (defined (HAVE_DECL_STRSIGNAL) && !HAVE_DECL_STRSIGNAL)
++#if 0 && (!defined (HAVE_STRSIGNAL) \
++    || (defined (HAVE_DECL_STRSIGNAL) && !HAVE_DECL_STRSIGNAL))
+ # ifndef strsignal
+ extern const char *strsignal (int);
+--- gcc/include/libiberty.h.bero	2013-04-19 18:38:38.884662882 +0200
++++ gcc/include/libiberty.h	2013-04-19 18:38:48.924537366 +0200
+@@ -105,7 +105,7 @@ extern int countargv (char**);
+    declaration without arguments.  If it is 0, we checked and failed
+    to find the declaration so provide a fully prototyped one.  If it
+    is 1, we found it so don't provide any declaration at all.  */
+-#if !HAVE_DECL_BASENAME
++#if 0 && !HAVE_DECL_BASENAME
+ #if defined (__GNU_LIBRARY__ ) || defined (__linux__) || defined (__FreeBSD__) || defined (__OpenBSD__) || defined(__NetBSD__) || defined (__CYGWIN__) || defined (__CYGWIN32__) || defined (__MINGW32__) || defined (HAVE_DECL_BASENAME)
+ extern char *basename (const char *);
+ #else
