@@ -8,7 +8,7 @@ GCC_FILE_NAME = $(PRODUCT_OUT)/system/bin/gcc
 native-toolchain: $(GCC_FILE_NAME)
 
 $(GCC_FILE_NAME): $(TARGET_CRTBEGIN_DYNAMIC_O) $(TARGET_CRTEND_O) $(TARGET_OUT_SHARED_LIBRARIES)/libm.so $(TARGET_OUT_SHARED_LIBRARIES)/libc.so $(TARGET_OUT_SHARED_LIBRARIES)/libdl.so $(TARGET_OUT_SHARED_LIBRARIES)/libstlport.so
-	DEST=$(realpath $(TOP))/$(PRODUCT_OUT) CRT=$(realpath $(shell dirname $(TOP)/$(TARGET_CRTBEGIN_DYNAMIC_O))) HOST_OUT=$(HOST_OUT) INTREE=true $(CURDIR)/native-toolchain/build.sh
+	DEST=$(realpath $(TOP))/$(PRODUCT_OUT) CRT=$(realpath $(shell dirname $(TOP)/$(TARGET_CRTBEGIN_DYNAMIC_O))) HOST_OUT=$(HOST_OUT) INTREE=true HOST_TOOLS="$(shell cd `dirname $(TARGET_TOOLS_PREFIX)` && pwd)/$(shell basename $(TARGET_TOOLS_PREFIX))" $(CURDIR)/native-toolchain/build.sh
 
 systemimage: $(GCC_FILE_NAME)
 

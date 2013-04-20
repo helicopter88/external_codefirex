@@ -66,7 +66,13 @@ rm -rf tc-wrapper
 #	1. toolchain not being properly sysrooted
 #	2. gcc not making a difference between CPPFLAGS for build and host machine
 mkdir tc-wrapper
-gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.8.1\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
+if [ -z "$HOST_TOOLS" ]; then
+	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"4.8.1\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
+else
+	HOSTGCCVER=$(${HOST_TOOLS}gcc -v 2>&1 |tail -n1 |sed -e 's,.* version ,,;s, .*,,')
+	HOSTDEST=$(dirname $HOST_TOOLS)/..
+	gcc -std=gnu99 -o tc-wrapper/arm-linux-androideabi-gcc tc-wrapper.c -DCCVERSION=\"$HOSTGCCVER\" -DTCROOT=\"$HOSTDEST\" -DDESTDIR=\"$DEST\"
+fi
 for i in cpp g++ c++; do
 	ln -s arm-linux-androideabi-gcc tc-wrapper/arm-linux-androideabi-$i
 done
@@ -279,96 +285,98 @@ rm -rf build
 mkdir build
 cd build
 
-# First of all, build a cross-toolchain for the current host (properly sysrooted)
 export PATH="$DIR/tc-wrapper:$HOSTDEST/bin:$PATH"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOSTDEST/lib64:$HOSTDEST/lib"
-rm -rf binutils-host
-mkdir -p binutils-host
-cd binutils-host
-$SRC/binutils/configure \
-	--prefix="$HOSTDEST" \
-	--target=arm-linux-androideabi \
-	--enable-gold=default \
-	--enable-shared \
-	--disable-static \
-	--disable-nls \
-	--with-sysroot="$DEST"
-make $SMP
-make install
-cd ..
+if [ -z "$HOST_TOOLS" ]; then
+	# First of all, build a cross-toolchain for the current host (properly sysrooted)
+	rm -rf binutils-host
+	mkdir -p binutils-host
+	cd binutils-host
+	$SRC/binutils/configure \
+		--prefix="$HOSTDEST" \
+		--target=arm-linux-androideabi \
+		--enable-gold=default \
+		--enable-shared \
+		--disable-static \
+		--disable-nls \
+		--with-sysroot="$DEST"
+	make $SMP
+	make install
+	cd ..
 
-rm -rf gmp-host
-mkdir -p gmp-host
-cd gmp-host
-$SRC/gmp/configure \
-	--prefix="$HOSTDEST" \
-	--disable-nls \
-	--disable-static
-make $SMP
-make install
-rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
-cd ..
+	rm -rf gmp-host
+	mkdir -p gmp-host
+	cd gmp-host
+	$SRC/gmp/configure \
+		--prefix="$HOSTDEST" \
+		--disable-nls \
+		--disable-static
+	make $SMP
+	make install
+	rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
+	cd ..
 
-rm -rf mpfr-host
-mkdir -p mpfr-host
-cd mpfr-host
-$SRC/mpfr/mpfr-$MPFR/configure \
-	--prefix="$HOSTDEST" \
-	--disable-static \
-	--with-sysroot="$DEST" \
-	--with-gmp-include="$HOSTDEST"/include \
-	--with-gmp-lib="$HOSTDEST"/lib
-make $SMP
-make install
-rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
-cd ..
+	rm -rf mpfr-host
+	mkdir -p mpfr-host
+	cd mpfr-host
+	$SRC/mpfr/mpfr-$MPFR/configure \
+		--prefix="$HOSTDEST" \
+		--disable-static \
+		--with-sysroot="$DEST" \
+		--with-gmp-include="$HOSTDEST"/include \
+		--with-gmp-lib="$HOSTDEST"/lib
+	make $SMP
+	make install
+	rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
+	cd ..
 
-rm -rf mpc-host
-mkdir -p mpc-host
-cd mpc-host
-# libtool rather sucks
-rm -f "$HOSTDEST"/lib/*.la
-$SRC/mpc/configure \
-	--prefix="$HOSTDEST" \
-	--disable-static \
-	--with-gmp-include="$HOSTDEST"/include \
-	--with-gmp-lib="$HOSTDEST"/lib \
-	--with-mpfr-include="$HOSTDEST"/include \
-	--with-mpfr-lib="$HOSTDEST"/lib
-make $SMP
-make install
-rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
-cd ..
+	rm -rf mpc-host
+	mkdir -p mpc-host
+	cd mpc-host
+	# libtool rather sucks
+	rm -f "$HOSTDEST"/lib/*.la
+	$SRC/mpc/configure \
+		--prefix="$HOSTDEST" \
+		--disable-static \
+		--with-gmp-include="$HOSTDEST"/include \
+		--with-gmp-lib="$HOSTDEST"/lib \
+		--with-mpfr-include="$HOSTDEST"/include \
+		--with-mpfr-lib="$HOSTDEST"/lib
+	make $SMP
+	make install
+	rm -f "$HOSTDEST"/lib/*.la # libtool sucks, *.la files are harmful
+	cd ..
 
-# TODO build CLooG and friends for graphite
+	# TODO build CLooG and friends for graphite
 
-mkdir -p gcc-host-bootstrap
-cd gcc-host-bootstrap
-$SRC/gcc/configure \
-	--prefix="$HOSTDEST" \
-	--target=arm-linux-androideabi \
-	--enable-languages=c,c++ \
-	--with-gnu-as \
-	--with-gnu-ar \
-	--with-gnu-ld \
-	--disable-shared \
-	--disable-libatomic \
-	--disable-libssp \
-	--disable-libmudflap \
-	--disable-libstdc__-v3 \
-	--disable-libitm \
-	--disable-nls \
-	--disable-libquadmath \
-	--disable-sjlj-exceptions \
-	--disable-libgomp \
-	--with-sysroot="$DEST" \
-	--with-gmp="$HOSTDEST" \
-	--with-mpfr="$HOSTDEST" \
-	--with-mpc="$HOSTDEST" \
-	--with-native-system-header-dir=/system/include
-make $SMP
-make install
-cd ..
+	mkdir -p gcc-host-bootstrap
+	cd gcc-host-bootstrap
+	$SRC/gcc/configure \
+		--prefix="$HOSTDEST" \
+		--target=arm-linux-androideabi \
+		--enable-languages=c,c++ \
+		--with-gnu-as \
+		--with-gnu-ar \
+		--with-gnu-ld \
+		--disable-shared \
+		--disable-libatomic \
+		--disable-libssp \
+		--disable-libmudflap \
+		--disable-libstdc__-v3 \
+		--disable-libitm \
+		--disable-nls \
+		--disable-libquadmath \
+		--disable-sjlj-exceptions \
+		--disable-libgomp \
+		--with-sysroot="$DEST" \
+		--with-gmp="$HOSTDEST" \
+		--with-mpfr="$HOSTDEST" \
+		--with-mpc="$HOSTDEST" \
+		--with-native-system-header-dir=/system/include
+	make $SMP
+	make install
+	cd ..
+fi
 
 if $INTREE; then
 	mkdir -p "$DEST"/system/lib
@@ -711,7 +719,7 @@ if ! $INTREE; then
 	set +e
 	find "$DEST" |xargs "$HOSTDEST"/bin/arm-linux-androideabi-strip --strip-unneeded
 fi
-[ "$DEST" != "$HOSTDEST" ] && rm -rf "$HOSTDEST"
+[ "$DEST" != "$HOSTDEST" ] && [ -z "$HOST_TOOLS" ] && rm -rf "$HOSTDEST"
 echo
 echo Toolchain build successful.
 echo The native toolchain can be found in $DEST.
