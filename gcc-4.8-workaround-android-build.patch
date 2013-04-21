@@ -42,3 +42,56 @@ upstreamed.
  #if defined (__GNU_LIBRARY__ ) || defined (__linux__) || defined (__FreeBSD__) || defined (__OpenBSD__) || defined(__NetBSD__) || defined (__CYGWIN__) || defined (__CYGWIN32__) || defined (__MINGW32__) || defined (HAVE_DECL_BASENAME)
  extern char *basename (const char *);
  #else
+--- gcc/gcc/configure.ac.ubuntusucks	2013-04-21 10:46:57.515599697 +0200
++++ gcc/gcc/configure.ac	2013-04-21 10:47:29.145202060 +0200
+@@ -1117,15 +1117,6 @@
+ #endif
+ ])
+ 
+-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+-#include "ansidecl.h"
+-#include "system.h"
+-#ifdef HAVE_SYS_RESOURCE_H
+-#include <sys/resource.h>
+-#endif
+-]], [[rlim_t l = 0;]])],[],[AC_DEFINE([rlim_t],[long],
+-[Define to `long' if <sys/resource.h> doesn't define.])])
+-
+ # On AIX 5.2, <ldfcn.h> conflicts with <fcntl.h>, as both define incompatible
+ # FREAD and FWRITE macros.  Fortunately, for GCC's single usage of ldgetname
+ # in collect2.c, <fcntl.h> isn't visible, but the configure test below needs
+--- gcc/gcc/configure.ubuntusucks	2013-04-21 10:46:51.325733233 +0200
++++ gcc/gcc/configure	2013-04-21 10:47:56.774854882 +0200
+@@ -10437,32 +10437,6 @@
+ done
+ 
+ 
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-#include "ansidecl.h"
+-#include "system.h"
+-#ifdef HAVE_SYS_RESOURCE_H
+-#include <sys/resource.h>
+-#endif
+-
+-int
+-main ()
+-{
+-rlim_t l = 0;
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_compile "$LINENO"; then :
+-
+-else
+-
+-$as_echo "#define rlim_t long" >>confdefs.h
+-
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+-
+ # On AIX 5.2, <ldfcn.h> conflicts with <fcntl.h>, as both define incompatible
+ # FREAD and FWRITE macros.  Fortunately, for GCC's single usage of ldgetname
+ # in collect2.c, <fcntl.h> isn't visible, but the configure test below needs
