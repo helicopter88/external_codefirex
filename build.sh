@@ -360,6 +360,7 @@ if [ -z "$HOST_TOOLS" ]; then
 		--with-gnu-ld \
 		--disable-shared \
 		--disable-libatomic \
+		--disable-libsanitizer \
 		--disable-libssp \
 		--disable-libmudflap \
 		--disable-libstdc__-v3 \
@@ -494,6 +495,7 @@ $SRC/gcc/configure \
 	--with-gnu-ld \
 	--disable-shared \
 	--disable-libatomic \
+	--disable-libsanitizer \
 	--disable-libssp \
 	--disable-libmudflap \
 	--disable-libstdc__-v3 \
