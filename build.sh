@@ -108,7 +108,8 @@ if [ "$cpu_variant" = "$krait" ]; then
             --target=arm-linux-androideabi \
             --enable-graphite=yes \
             --enable-gold=yes \
-            --enable-plugins
+            --enable-plugins \
+            --disable-libsanitizer
 else
     $SRC/build/configure \
             --prefix="$DEST" \
@@ -126,7 +127,8 @@ else
             --target=arm-linux-androideabi \
             --enable-graphite=yes \
             --enable-gold=yes \
-            --enable-plugins
+            --enable-plugins \
+            --disable-libsanitizer
 fi
 
 make $SMP
