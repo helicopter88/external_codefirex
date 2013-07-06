@@ -108,7 +108,7 @@ else
             --with-gold-version="$BINUTILS" \
             --with-gcc-version="$GCC" \
             --with-sysroot=/ \
-            --with-tune="$TARGET_GCC_VERSION" \
+            --with-tune="$TARGET_CPU_VARIANT" \
             --target=arm-linux-androideabi \
             --enable-graphite=yes \
             --enable-gold=yes \
