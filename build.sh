@@ -48,44 +48,29 @@ echo "================================================"
 # Note: we're only building arm-linux-androideabi currently
 #
 # TODO: support more triplets
-DEST=$(get_abs_build_var ANDROID_GCC_PREBUILTS)/arm-linux-androideabi-$(TARGET_GCC_VERSION)
+DEST=$gccprebuildir/arm/arm-linux-androideabi-$TARGET_GCC_VERSION
 
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
-local cpu_variant="$TARGET_CPU_VARIANT"
-local krait_variant=krait
+cpu_variant="$TARGET_CPU_VARIANT"
+krait_variant=krait
 
-if [ "$cpu_variant" = "$krait" ]; then
-    export TARGET_CFLAGS="$CFLAGS -O2 -march=armv7-a -mtune=cortex-a9"
-    export TARGET_CXXFLAGS="$CXXFLAGS -O2 -march=armv7-a -mtune=cortex-a9 -frtti"
-else
-    export TARGET_CFLAGS="$CFLAGS -O2 -march=armv7-a -mtune=\"$TARGET_CPU_VARIANT\""
-    export TARGET_CXXFLAGS="$CXXFLAGS -frtti -O2 -march=armv7-a -mtune=\"$TARGET_CPU_VARIANT\""
-fi
-
-export CFLAGS="$TARGET_CFLAGS"
-export CXXFLAGS="$TARGET_CXXFLAGS"
-
-echo "============================="
-echo "Relevant variables:"
-echo "============================="
-echo "export CFLAGS=\"$CFLAGS\""
-echo "export CXXFLAGS=\"$CXXFLAGS\""
-echo "============================="
-
+# Set locales to avoid python warnings
+# or errors depending on configuration
 export LC_ALL=C
 
-DIR="$PWD"
+# Set our local paths
+DIR="$ANDROID_BUILD_TOP/external/codefirex"
 SRC="$DIR/src"
 
 # Apply our squashed AOSP ports patch on gcc trunk
-cd src/gcc/gcc-$GCC
+cd $SRC/gcc/gcc-$GCC
 patch -p1 < "$DIR/gcc-4.9-android.patch"
 cd ../..
 cd $DIR
 
-mkdir $OUT/toolchain_build
+mkdir -p $OUT/toolchain_build
 cd $OUT/toolchain_build
 
 # Configure the build for arm-linux-androideabi
@@ -103,8 +88,8 @@ if [ "$cpu_variant" = "$krait" ]; then
             --with-binutils-version="$BINUTILS" \
             --with-gold-version="$BINUTILS" \
             --with-gcc-version="$GCC" \
-            --with-tune=cortex-a9 \
             --with-sysroot=/ \
+            --with-tune=cortex-a9 \
             --target=arm-linux-androideabi \
             --enable-graphite=yes \
             --enable-gold=yes \
@@ -122,8 +107,8 @@ else
             --with-binutils-version="$BINUTILS" \
             --with-gold-version="$BINUTILS" \
             --with-gcc-version="$GCC" \
-            --with-tune="$TARGET_GCC_VERSION" \
             --with-sysroot=/ \
+            --with-tune="$TARGET_GCC_VERSION" \
             --target=arm-linux-androideabi \
             --enable-graphite=yes \
             --enable-gold=yes \
@@ -131,14 +116,17 @@ else
             --disable-libsanitizer
 fi
 
+# Add $DEST to PATH for proper assembly compilation
+export PATH=$PATH$DEST
+
 # Make and install the toolchain to the proper path
 make $SMP
 make install
 
 #We need to copy the necessary makefiles for the
 # Android build system now.
-cp $DIR/Makefiles/Android.mk $DEST/
-cp $DIR/Makefiles/toolchain.mk $DEST/
+cp $DIR/Makefiles/Android.mk $DEST/Android.mk
+cp $DIR/Makefiles/toolchain.mk $DEST/toolchain.mk
 cp $DIR/Makefiles/lib32-Android.mk $DEST/lib32/Android.mk
 
 echo "========================================="
@@ -147,7 +135,12 @@ echo "The toolchain can be found in $DEST."
 echo "Now building Android with cfX-Toolchain."
 echo "========================================="
 
-# Nasty hack: go back to android top for continuing android build
-cd $(gettop)
+# HACK: reset gcc back to it's unpatched state
+cd $SRC/gcc/gcc-$GCC
+git add .
+git reset --hard
+
+# Go back to android build top to continue the build
+cd $ANDROID_BUILD_TOP
 
 exit 0
