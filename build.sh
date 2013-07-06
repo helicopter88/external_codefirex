@@ -131,8 +131,15 @@ else
             --disable-libsanitizer
 fi
 
+# Make and install the toolchain to the proper path
 make $SMP
 make install
+
+#We need to copy the necessary makefiles for the
+# Android build system now.
+cp $DIR/Makefiles/Android.mk $DEST/
+cp $DIR/Makefiles/toolchain.mk $DEST/
+cp $DIR/Makefiles/lib32-Android.mk $DEST/lib32/Android.mk
 
 echo "========================================="
 echo "Toolchain build successful."
