@@ -81,14 +81,23 @@ else
             --disable-libsanitizer
 fi
 
-# We must use our $PATH from before the addition of
-# Android paths in setpaths(). First backup the new
-# $PATH with Android path additions.
+# We must use a "generic" $PATH for building
+# the toolchain inline so as not to use the
+# path with the ABS additions.
+# First backup the new $PATH with Android
+# path additions.
 export NEWPATH=$PATH
 
-# Set our backed up $PATH as $PATH as well as adding
-# $DEST
-export PATH=$OLDPATH$DEST
+# Export a "generic" path for sysrooted toolchain building.
+# This should be foolproof, but please let me know
+# at synergye@codefi.re if there are any additions
+# that should be made for your distro or configuration.
+# Also add $DEST to the new $PATH.
+#
+# This uses the $USER environment variable. It's also
+# in use on bsd and darwin systems, but if it isn't set
+# for you, you may use the $(whoami) function instead.
+export PATH=/home/$USER/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/share/bin:$DEST
 
 # Make and install the toolchain to the proper path
 make $SMP
