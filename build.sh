@@ -1,26 +1,5 @@
 #!/bin/bash
 
-echo "=========================================================="
-echo "A few notes:"
-echo "=========================================================="
-echo "1) If you do not want to build the toolchain inline,"
-echo "run \"choosetype\" immediately after lunching."
-echo "Select release from the menu to use a prebuilt toolchain"
-echo ""
-echo "2) We build the toolchain in $OUT due to some"
-echo "build configurations using multiple drives or partitions."
-echo ""
-echo "3) We have the entire toolchain_build folder in a"
-echo "cleanspec, so there's no need to delete it ourselves."
-echo "This means if you do not make clean, no new toolchain is"
-echo "built (or fully built)."
-echo ""
-echo "4) The toolchain build uses your *HOST* sysroot."
-echo "If you don't know what this means don't worry."
-echo "If you do know what this means, we did it this way"
-echo "to rid your build system of unnecessary symlinks"
-echo "=========================================================="
-
 # What we're building with
 [ -z "$BINUTILS" ] && BINUTILS=2.23
 [ -z "$CLOOG" ] && CLOOG=0.18.0
@@ -30,19 +9,6 @@ echo "=========================================================="
 [ -z "$GMP" ] && GMP=5.1.2
 [ -z "$MPFR" ] && MPFR=3.1.2
 [ -z "$MPC" ] && MPC=1.0.1
-
-echo "================================================"
-echo "We're building the toolchain with the following:"
-echo "================================================"
-echo "Binutils=\"$BINUTILS\""
-echo "Cloog=\"$CLOOG\""
-echo "PPL=\"$PPL\""
-echo "GCC=\"$GCC\""
-echo "GDB=\"$GDB\""
-echo "GMP=\"$GMP\""
-echo "MPFR=\"$MPFR\""
-echo "MPC=\"$MPC\""
-echo "================================================"
 
 # Installation location
 # Note: we're only building arm-linux-androideabi currently
@@ -135,16 +101,52 @@ cp $DIR/Makefiles/Android.mk $DEST/Android.mk
 cp $DIR/Makefiles/toolchain.mk $DEST/toolchain.mk
 cp $DIR/Makefiles/lib32-Android.mk $DEST/lib32/Android.mk
 
-echo "========================================="
+echo ""
+echo "=========================================================="
 echo "Toolchain build successful."
 echo "The toolchain can be found in $DEST."
 echo "Now building Android with cfX-Toolchain."
-echo "========================================="
+echo "=========================================================="
+echo ""
+echo "=========================================================="
+echo "The toolchain was built with the following:"
+echo "=========================================================="
+echo "Binutils=\"$BINUTILS\""
+echo "Cloog=\"$CLOOG\""
+echo "PPL=\"$PPL\""
+echo "GCC=\"$GCC\""
+echo "GDB=\"$GDB\""
+echo "GMP=\"$GMP\""
+echo "MPFR=\"$MPFR\""
+echo "MPC=\"$MPC\""
+echo "=========================================================="
+echo ""
+echo "=========================================================="
+echo "A few notes:"
+echo "=========================================================="
+echo "1) If you do not want to build the toolchain inline in the"
+echo "future, run \"choosecombo\" instead of lunch."
+echo "Select \"release\" from the build type menu instead of"
+echo "\"development\""
+echo ""
+echo "2) We use $OUT for toolchain building due to some"
+echo "build configurations using multiple drives or partitions."
+echo ""
+echo "3) We have the entire toolchain_build folder in a"
+echo "cleanspec, so there's no need to delete it ourselves."
+echo "This means if you do not make clean, no new toolchain is"
+echo "built (or fully built)."
+echo ""
+echo "4) The toolchain build uses your *HOST* sysroot."
+echo "If you don't know what this means don't worry."
+echo "If you do know what this means, we did it this way"
+echo "to rid your build system of unnecessary symlinks"
+echo "=========================================================="
 
 # HACK: reset gcc back to it's unpatched state
 cd $SRC/gcc/gcc-$GCC
 git add .
-git reset --hard
+git reset --hard --quiet
 
 # Restore Android Build System set $PATH
 export PATH=$NEWPATH
