@@ -16,6 +16,11 @@
 # TODO: support more triplets
 DEST=$ANDROID_BUILD_TOP/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$TARGET_GCC_VERSION
 
+# Before we do anything else, ensure that $DEST is clean.
+# This is due to the CleanSpec behavior not acting
+# as we would like it to.
+rm -rf $DEST
+
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
 
