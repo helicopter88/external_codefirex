@@ -84,10 +84,10 @@ fi
 
 # We must use our $PATH from before the addition of
 # Android paths in setpaths(). First backup the new
-# #PATH with Android path additions.
+# $PATH with Android path additions.
 export NEWPATH=$PATH
 
-# Set our backed up #PATH as $PATH as well as adding
+# Set our backed up $PATH as $PATH as well as adding
 # $DEST
 export PATH=$OLDPATH$DEST
 
