@@ -48,7 +48,7 @@ echo "================================================"
 # Note: we're only building arm-linux-androideabi currently
 #
 # TODO: support more triplets
-DEST=$gccprebuildir/arm/arm-linux-androideabi-$TARGET_GCC_VERSION
+DEST=$ANDROID_BUILD_TOP/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-$TARGET_GCC_VERSION
 
 # Parallel build flag passed to make
 [ -z "$SMP" ] && SMP="-j`getconf _NPROCESSORS_ONLN`"
@@ -116,8 +116,14 @@ else
             --disable-libsanitizer
 fi
 
-# Add $DEST to PATH for proper assembly compilation
-export PATH=$PATH$DEST
+# We must use our $PATH from before the addition of
+# Android paths in setpaths(). First backup the new
+# #PATH with Android path additions.
+export NEWPATH=$PATH
+
+# Set our backed up #PATH as $PATH as well as adding
+# $DEST
+export PATH=$OLDPATH$DEST
 
 # Make and install the toolchain to the proper path
 make $SMP
@@ -139,6 +145,9 @@ echo "========================================="
 cd $SRC/gcc/gcc-$GCC
 git add .
 git reset --hard
+
+# Restore Android Build System set $PATH
+export PATH=$NEWPATH
 
 # Go back to android build top to continue the build
 cd $ANDROID_BUILD_TOP
