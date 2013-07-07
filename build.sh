@@ -33,7 +33,6 @@ SRC="$DIR/src"
 # Apply our squashed AOSP ports patch on gcc trunk
 cd $SRC/gcc/gcc-$GCC
 patch -p1 < "$DIR/gcc-4.9-android.patch"
-cd ../..
 cd $DIR
 
 mkdir -p $OUT/toolchain_build
