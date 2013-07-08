@@ -10,6 +10,10 @@
 [ -z "$MPFR" ] && MPFR=3.1.2
 [ -z "$MPC" ] && MPC=1.0.1
 
+# Export gcc version as an environment variable for
+# use elsewhere in the Android Build System
+export GCC_SOURCE_VER=$GCC
+
 # Installation location
 # Note: we're only building arm-linux-androideabi currently
 #
